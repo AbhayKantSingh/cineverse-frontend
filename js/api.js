@@ -28,7 +28,7 @@ async function apiFetch(path, options = {}) {
     const res = await fetch(`${API_BASE}${path}`, { headers: authHeaders(), ...options });
     const ct  = res.headers.get('content-type') || '';
     if (!ct.includes('application/json')) {
-      throw new Error(`Backend offline. Please run: cd backend && npm start`);
+      throw new Error(`WELCOME! PLEASE REFRESH THE PAGE AND WAIT FOR 30 SECONDS TO LOAD CONTENT`);
     }
     const data = await res.json();
     if (!res.ok) {
