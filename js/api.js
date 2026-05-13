@@ -2,7 +2,7 @@
 // CINEVERSE v4 — Frontend API Client (Auto-detects local vs prod)
 // ================================================================
 const _isLocal   = ['localhost','127.0.0.1','0.0.0.0'].includes(location.hostname);
-const _PROD_HOST = 'https://cineverse-backend-xbm3.onrender.com/';
+const _PROD_HOST = 'https://cineverse-backend-xbm3.onrender.com';
 const _LOCAL_HOST= 'http://localhost:5000'; // Change if backend starts on different port
 const API_BASE   = (_isLocal ? _LOCAL_HOST : _PROD_HOST) + '/api';
 const IMG_BASE   = 'https://image.tmdb.org/t/p/';
