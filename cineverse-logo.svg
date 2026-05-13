@@ -1,0 +1,63 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 80" role="img" aria-label="CineVerse">
+  <defs>
+    <linearGradient id="g1" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#00e5ff"/>
+      <stop offset="100%" stop-color="#7b2fff"/>
+    </linearGradient>
+    <linearGradient id="g2" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00e5ff" stop-opacity="0.9"/>
+      <stop offset="100%" stop-color="#7b2fff" stop-opacity="0.9"/>
+    </linearGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="2" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <!-- Background pill -->
+  <rect x="2" y="2" width="236" height="76" rx="16" fill="#050810"/>
+  <rect x="2" y="2" width="236" height="76" rx="16" fill="none" stroke="url(#g1)" stroke-width="1.2" stroke-opacity="0.4"/>
+
+  <!-- Film strip icon -->
+  <g transform="translate(14,14)" filter="url(#glow)">
+    <!-- Main film body -->
+    <rect x="0" y="4" width="36" height="24" rx="3" fill="none" stroke="url(#g1)" stroke-width="1.5"/>
+    <!-- Film holes top -->
+    <rect x="3"  y="0" width="5" height="6" rx="1.5" fill="url(#g1)" opacity="0.9"/>
+    <rect x="11" y="0" width="5" height="6" rx="1.5" fill="url(#g1)" opacity="0.9"/>
+    <rect x="19" y="0" width="5" height="6" rx="1.5" fill="url(#g1)" opacity="0.9"/>
+    <rect x="27" y="0" width="5" height="6" rx="1.5" fill="url(#g1)" opacity="0.9"/>
+    <!-- Film holes bottom -->
+    <rect x="3"  y="26" width="5" height="6" rx="1.5" fill="url(#g1)" opacity="0.9"/>
+    <rect x="11" y="26" width="5" height="6" rx="1.5" fill="url(#g1)" opacity="0.9"/>
+    <rect x="19" y="26" width="5" height="6" rx="1.5" fill="url(#g1)" opacity="0.9"/>
+    <rect x="27" y="26" width="5" height="6" rx="1.5" fill="url(#g1)" opacity="0.9"/>
+    <!-- Play triangle -->
+    <polygon points="13,10 13,22 25,16" fill="url(#g2)" opacity="0.95"/>
+    <!-- Scan lines inside film -->
+    <line x1="0" y1="12" x2="36" y2="12" stroke="rgba(0,229,255,0.12)" stroke-width="1"/>
+    <line x1="0" y1="20" x2="36" y2="20" stroke="rgba(0,229,255,0.12)" stroke-width="1"/>
+  </g>
+
+  <!-- CINEVERSE text -->
+  <text x="62" y="49"
+    font-family="'Orbitron', 'Arial Black', sans-serif"
+    font-size="26"
+    font-weight="900"
+    letter-spacing="3"
+    fill="url(#g1)"
+    filter="url(#glow)">CINEVERSE</text>
+
+  <!-- Tagline -->
+  <text x="63" y="63"
+    font-family="'Rajdhani', 'Arial', sans-serif"
+    font-size="9.5"
+    font-weight="600"
+    letter-spacing="4"
+    fill="#8892b0"
+    opacity="0.85">YOUR UNIVERSE OF CINEMA</text>
+
+  <!-- Decorative dot accent -->
+  <circle cx="62" cy="38" r="2.5" fill="#00e5ff" opacity="0.5"/>
+  <circle cx="229" cy="38" r="2.5" fill="#7b2fff" opacity="0.5"/>
+</svg>

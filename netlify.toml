@@ -1,0 +1,9 @@
+[build]
+  publish = "."
+  command = "echo done"
+
+[[redirects]]
+  from = "/api/*"
+  to = "https://cineverse-backend.onrender.com/api/:splat"
+  status = 200
+  force = true

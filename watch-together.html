@@ -1,0 +1,1436 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>CineVerse — Watch Together</title>
+  <meta name="description" content="Watch movies together with friends in real-time. Sync playback, live chat, and reactions."/>
+  <link rel="stylesheet" href="css/style.css"/>
+  <script src="https://cdn.socket.io/4.7.4/socket.io.min.js"></script>
+  <style>
+    /* ═══════════════════════════════════════════
+       WATCH TOGETHER — ALL STYLES
+    ═══════════════════════════════════════════ */
+    .wt-page { min-height:100vh; background:radial-gradient(ellipse at 20% 50%,rgba(123,47,255,.13) 0%,transparent 60%),radial-gradient(ellipse at 80% 20%,rgba(0,229,255,.09) 0%,transparent 55%),var(--bg-primary); padding-top:80px; }
+
+    /* ── LOBBY ── */
+    #lobbyScreen { display:flex; flex-direction:column; align-items:center; min-height:calc(100vh - 80px); padding:2.5rem 1.5rem 4rem; gap:2rem; }
+    .lobby-hero { text-align:center; }
+    .lobby-title { font-family:var(--font-display); font-size:clamp(1.8rem,4vw,2.8rem); font-weight:900; background:var(--grad-accent); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; letter-spacing:3px; }
+    .lobby-sub { font-family:var(--font-ui); color:var(--text-secondary); font-size:1rem; margin-top:.5rem; }
+
+    /* steps */
+    .steps-bar { display:flex; align-items:center; gap:0; margin-bottom:.25rem; }
+    .step-item { display:flex; align-items:center; gap:.5rem; font-family:var(--font-ui); font-size:.78rem; font-weight:700; letter-spacing:1px; color:var(--text-dim); }
+    .step-item.active { color:var(--accent-cyan); }
+    .step-item.done   { color:var(--accent-green); }
+    .step-num { width:24px; height:24px; border-radius:50%; background:rgba(255,255,255,.06); border:1.5px solid currentColor; display:flex; align-items:center; justify-content:center; font-size:.7rem; flex-shrink:0; }
+    .step-arrow { width:32px; height:1px; background:rgba(255,255,255,.1); margin:0 .25rem; }
+
+    /* lobby card */
+    .lobby-box { width:100%; max-width:700px; background:var(--bg-card); border:1px solid rgba(255,255,255,.07); border-radius:var(--radius-lg); padding:2rem; display:flex; flex-direction:column; gap:1.5rem; transition:border-color .3s; }
+    .lobby-box:hover { border-color:var(--border-glow); }
+    .lbox-title { font-family:var(--font-display); font-size:.85rem; color:var(--accent-cyan); letter-spacing:2px; display:flex; align-items:center; gap:.5rem; }
+
+    /* search */
+    .search-row { display:flex; gap:.625rem; }
+    .lsearch-input { flex:1; background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.1); border-radius:var(--radius-sm); padding:.7rem 1rem; color:var(--text-primary); font-family:var(--font-body); font-size:.9rem; outline:none; transition:var(--transition); }
+    .lsearch-input:focus { border-color:var(--accent-cyan); box-shadow:0 0 0 3px rgba(0,229,255,.08); }
+    .lsearch-input::placeholder { color:var(--text-dim); }
+    .lsearch-btn { padding:.7rem 1.4rem; background:var(--grad-accent); border:none; border-radius:var(--radius-sm); color:#fff; font-family:var(--font-ui); font-weight:700; font-size:.85rem; letter-spacing:1px; cursor:pointer; white-space:nowrap; transition:var(--transition); }
+    .lsearch-btn:hover { opacity:.85; transform:translateY(-1px); }
+    .lsearch-btn:disabled { opacity:.5; cursor:not-allowed; transform:none; }
+
+    /* results grid */
+    .search-results-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(110px,1fr)); gap:.75rem; max-height:320px; overflow-y:auto; padding-right:4px; }
+    .search-results-grid::-webkit-scrollbar { width:3px; }
+    .search-results-grid::-webkit-scrollbar-thumb { background:var(--accent-cyan); border-radius:2px; }
+    .result-card { background:rgba(255,255,255,.03); border:2px solid transparent; border-radius:var(--radius-md); overflow:hidden; cursor:pointer; transition:var(--transition); }
+    .result-card:hover { border-color:var(--accent-cyan); transform:translateY(-3px); box-shadow:var(--shadow-cyan); }
+    .result-card.selected { border-color:var(--accent-cyan); box-shadow:0 0 20px rgba(0,229,255,.35); }
+    .result-card img { width:100%; aspect-ratio:2/3; object-fit:cover; display:block; background:var(--bg-secondary); }
+    .result-card-info { padding:.4rem .5rem; }
+    .result-card-title { font-family:var(--font-ui); font-size:.7rem; font-weight:700; color:var(--text-primary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .result-card-year  { font-size:.62rem; color:var(--text-dim); }
+    .result-card-type  { display:inline-block; padding:1px 5px; border-radius:4px; font-size:.58rem; font-weight:700; letter-spacing:.5px; margin-top:2px; }
+    .type-movie { background:rgba(0,229,255,.12); color:var(--accent-cyan); }
+    .type-tv    { background:rgba(123,47,255,.15); color:#a78bfa; }
+
+    /* selected movie banner */
+    .selected-banner { display:none; align-items:center; gap:1rem; padding:1rem; background:rgba(0,229,255,.06); border:1px solid rgba(0,229,255,.2); border-radius:var(--radius-md); animation:fadeInUp .3s ease; }
+    .selected-banner.show { display:flex; }
+    .sel-poster { width:48px; height:72px; border-radius:6px; object-fit:cover; border:1px solid var(--border-glow); }
+    .sel-title { font-family:var(--font-ui); font-weight:700; font-size:.95rem; color:var(--text-primary); }
+    .sel-meta  { font-size:.75rem; color:var(--text-secondary); margin-top:2px; }
+    .sel-change { margin-left:auto; background:none; border:1px solid rgba(255,255,255,.15); border-radius:var(--radius-sm); color:var(--text-secondary); font-family:var(--font-ui); font-size:.72rem; padding:.3rem .7rem; cursor:pointer; transition:var(--transition); white-space:nowrap; }
+    .sel-change:hover { border-color:var(--accent-pink); color:var(--accent-pink); }
+
+    /* server picker */
+    .server-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(145px,1fr)); gap:.5rem; }
+    .srv-btn { padding:.55rem .875rem; background:rgba(255,255,255,.04); border:1.5px solid rgba(255,255,255,.1); border-radius:var(--radius-sm); color:var(--text-secondary); font-family:var(--font-ui); font-size:.73rem; font-weight:600; letter-spacing:.5px; cursor:pointer; transition:var(--transition); text-align:left; }
+    .srv-btn:hover   { border-color:var(--accent-cyan); color:var(--accent-cyan); background:rgba(0,229,255,.06); }
+    .srv-btn.active  { border-color:var(--accent-cyan); color:var(--accent-cyan); background:rgba(0,229,255,.1); box-shadow:0 0 12px rgba(0,229,255,.15); }
+    .srv-btn .srv-dot { width:7px; height:7px; border-radius:50%; background:var(--accent-green); display:inline-block; margin-right:5px; vertical-align:middle; }
+
+    /* TV season/episode */
+    .tv-options { display:flex; gap:.75rem; }
+    .tv-select { flex:1; background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.1); border-radius:var(--radius-sm); padding:.55rem .875rem; color:var(--text-primary); font-family:var(--font-body); font-size:.85rem; outline:none; cursor:pointer; transition:var(--transition); }
+    .tv-select:focus { border-color:var(--accent-cyan); }
+    .tv-select option { background:var(--bg-card); }
+
+    /* name + divider */
+    .name-row { display:flex; gap:.75rem; align-items:flex-end; }
+    .name-field { flex:1; }
+    .field-label { font-family:var(--font-ui); font-size:.72rem; color:var(--text-dim); letter-spacing:1.5px; margin-bottom:.4rem; }
+    .lobby-input { width:100%; background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.1); border-radius:var(--radius-sm); padding:.65rem 1rem; color:var(--text-primary); font-family:var(--font-body); font-size:.88rem; outline:none; transition:var(--transition); }
+    .lobby-input:focus { border-color:var(--accent-cyan); box-shadow:0 0 0 3px rgba(0,229,255,.08); }
+    .lobby-input::placeholder { color:var(--text-dim); }
+
+    /* divider */
+    .lor-divider { display:flex; align-items:center; gap:1rem; color:var(--text-dim); font-family:var(--font-ui); font-size:.75rem; }
+    .lor-divider::before,.lor-divider::after { content:''; flex:1; height:1px; background:rgba(255,255,255,.07); }
+
+    /* join box */
+    .join-code-row { display:flex; gap:.75rem; }
+    .code-input { flex:1; background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.1); border-radius:var(--radius-sm); padding:.65rem 1rem; color:var(--text-primary); font-family:var(--font-display); font-size:1rem; letter-spacing:4px; text-transform:uppercase; outline:none; transition:var(--transition); text-align:center; }
+    .code-input:focus { border-color:var(--accent-purple); box-shadow:0 0 0 3px rgba(123,47,255,.1); }
+    .code-input::placeholder { color:var(--text-dim); font-size:.75rem; letter-spacing:2px; font-family:var(--font-ui); }
+
+    /* feature pills */
+    .feature-pills { display:flex; gap:.75rem; flex-wrap:wrap; justify-content:center; }
+    .fp { background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.07); border-radius:50px; padding:.35rem .875rem; font-family:var(--font-ui); font-size:.75rem; color:var(--text-secondary); }
+
+    /* ── PARTY ROOM ── */
+    #partyScreen { display:none; height:calc(100vh - 80px); }
+    .party-layout { display:grid; grid-template-columns:1fr 340px; height:100%; }
+
+    /* video */
+    .video-panel { display:flex; flex-direction:column; background:#000; position:relative; overflow:hidden; }
+    .video-wrapper { flex:1; position:relative; background:#000; }
+    #partyIframe { width:100%; height:100%; border:none; display:block; }
+
+    /* Click interceptor — sits over iframe, catches clicks for sync */
+    #clickInterceptor {
+      position: absolute;
+      inset: 0;
+      z-index: 5;
+      cursor: pointer;
+      background: transparent;
+    }
+    /* Flash indicator — big ▶/⏸ shown on play/pause */
+    #overlayFlash {
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%,-50%) scale(.8);
+      font-size: 4rem;
+      color: #fff;
+      text-shadow: 0 0 30px rgba(0,229,255,.8), 0 4px 20px rgba(0,0,0,.9);
+      opacity: 0;
+      transition: opacity .4s ease, transform .4s ease;
+      pointer-events: none;
+      z-index: 8;
+      user-select: none;
+    }
+
+    /* Countdown sync overlay */
+    #countdownOverlay {
+      position: absolute;
+      inset: 0;
+      z-index: 20;
+      background: rgba(5,8,16,.88);
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 1rem;
+      pointer-events: none;
+    }
+    #countdownOverlay.show { display: flex; }
+    #countdownNum {
+      font-family: var(--font-display);
+      font-size: 7rem;
+      font-weight: 900;
+      background: var(--grad-accent);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      line-height: 1;
+      animation: cdbounce .4s ease;
+    }
+    @keyframes cdbounce { 0%{transform:scale(1.4)} 100%{transform:scale(1)} }
+    #countdownLabel {
+      font-family: var(--font-ui);
+      font-size: .85rem;
+      color: var(--accent-cyan);
+      letter-spacing: 3px;
+    }
+    .sync-overlay { position:absolute; inset:0; background:rgba(0,0,0,.8); display:none; flex-direction:column; align-items:center; justify-content:center; gap:1rem; z-index:10; }
+    .sync-overlay.show { display:flex; }
+    .sync-spinner { width:44px; height:44px; border:3px solid rgba(0,229,255,.15); border-top-color:var(--accent-cyan); border-radius:50%; animation:spin .75s linear infinite; }
+    .sync-text { font-family:var(--font-display); font-size:.8rem; color:var(--accent-cyan); letter-spacing:2px; }
+
+    /* controls bar */
+    .video-controls { background:rgba(5,8,16,.97); border-top:1px solid var(--border-glow); padding:.65rem 1.25rem; display:flex; align-items:center; gap:.75rem; flex-shrink:0; }
+    .vc-btn { width:38px; height:38px; border-radius:50%; background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.1); color:var(--text-primary); cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:.95rem; transition:var(--transition); flex-shrink:0; }
+    .vc-btn:hover { background:rgba(0,229,255,.15); border-color:var(--accent-cyan); color:var(--accent-cyan); }
+    .vc-time { font-family:var(--font-ui); font-size:.75rem; color:var(--text-secondary); letter-spacing:1px; white-space:nowrap; }
+    .vc-progress { flex:1; -webkit-appearance:none; appearance:none; height:4px; border-radius:2px; background:rgba(255,255,255,.1); cursor:pointer; outline:none; }
+    .vc-progress::-webkit-slider-thumb { -webkit-appearance:none; width:12px; height:12px; border-radius:50%; background:var(--accent-cyan); cursor:pointer; box-shadow:0 0 8px rgba(0,229,255,.5); }
+    .vc-room-pill { font-family:var(--font-display); font-size:.7rem; color:var(--accent-purple); letter-spacing:2px; background:rgba(123,47,255,.12); padding:.28rem .75rem; border-radius:50px; border:1px solid rgba(123,47,255,.3); cursor:pointer; white-space:nowrap; transition:var(--transition); }
+    .vc-room-pill:hover { background:rgba(123,47,255,.25); }
+
+    /* Host badge pill */
+    .host-badge-pill { font-family:var(--font-display); font-size:.65rem; color:var(--accent-gold,#ffd700); letter-spacing:2px; background:rgba(255,215,0,.1); padding:.28rem .75rem; border-radius:50px; border:1px solid rgba(255,215,0,.35); white-space:nowrap; flex-shrink:0; }
+
+    /* Guest static progress bar */
+    .vc-progress-static { flex:1; height:4px; background:rgba(255,255,255,.08); border-radius:2px; overflow:hidden; min-width:60px; }
+    .vc-progress-fill   { height:100%; background:var(--grad-accent); border-radius:2px; transition:width .9s linear; pointer-events:none; }
+
+    /* Ask-to-pause button */
+    .ask-pause-btn { display:flex; align-items:center; gap:.4rem; padding:.45rem 1rem; border-radius:50px; background:rgba(255,215,0,.1); border:1px solid rgba(255,215,0,.4); color:#ffd700; font-family:var(--font-ui); font-size:.72rem; font-weight:700; letter-spacing:1.5px; cursor:pointer; transition:var(--transition); white-space:nowrap; flex-shrink:0; }
+    .ask-pause-btn:hover { background:rgba(255,215,0,.22); transform:translateY(-1px); box-shadow:0 0 14px rgba(255,215,0,.25); }
+    .ask-pause-btn:disabled { opacity:.4; cursor:not-allowed; transform:none; }
+    .ask-pause-btn.sent { background:rgba(0,229,255,.1); border-color:var(--accent-cyan); color:var(--accent-cyan); }
+
+    /* Pause request popup */
+    .popup-backdrop { position:absolute; inset:0; background:rgba(0,0,0,.55); backdrop-filter:blur(4px); }
+    .popup-card {
+      position:relative; z-index:1;
+      background:var(--bg-card);
+      border:1px solid var(--border-glow);
+      border-radius:var(--radius-lg);
+      padding:2rem 2rem 1.75rem;
+      width:90%; max-width:360px;
+      display:flex; flex-direction:column; align-items:center; gap:1rem;
+      box-shadow:0 0 60px rgba(0,229,255,.15), 0 20px 60px rgba(0,0,0,.6);
+      animation:popIn .3s cubic-bezier(.34,1.56,.64,1);
+    }
+    @keyframes popIn { from{transform:scale(.8);opacity:0} to{transform:scale(1);opacity:1} }
+    .popup-icon { font-size:2.5rem; line-height:1; }
+    .popup-title { font-family:var(--font-display); font-size:1.1rem; font-weight:700; color:var(--text-primary); letter-spacing:2px; }
+    .popup-msg { font-family:var(--font-ui); font-size:.9rem; color:var(--text-secondary); text-align:center; line-height:1.5; }
+    .popup-actions { display:flex; gap:.75rem; width:100%; margin-top:.25rem; }
+    .popup-btn { flex:1; padding:.65rem; border-radius:var(--radius-sm); font-family:var(--font-ui); font-size:.82rem; font-weight:700; letter-spacing:1px; cursor:pointer; transition:var(--transition); border:none; }
+    .popup-btn-yes { background:var(--grad-accent); color:#fff; }
+    .popup-btn-yes:hover { opacity:.85; transform:translateY(-1px); }
+    .popup-btn-no { background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.12); color:var(--text-secondary); }
+    .popup-btn-no:hover { background:rgba(255,45,120,.15); border-color:var(--accent-pink); color:var(--accent-pink); }
+
+    /* side panel */
+    .side-panel { display:flex; flex-direction:column; background:var(--bg-secondary); border-left:1px solid var(--border-glow); height:100%; overflow:hidden; }
+    .party-header { padding:.875rem 1.125rem; border-bottom:1px solid rgba(255,255,255,.06); display:flex; align-items:center; gap:.75rem; flex-shrink:0; }
+    .party-poster-sm { width:40px; height:60px; border-radius:6px; object-fit:cover; border:1px solid var(--border-glow); }
+    .party-movie-name { font-family:var(--font-ui); font-size:.88rem; font-weight:700; color:var(--text-primary); line-height:1.3; }
+    .party-meta { font-family:var(--font-ui); font-size:.68rem; color:var(--accent-gold); display:flex; align-items:center; gap:4px; margin-top:2px; }
+    .side-tabs { display:flex; border-bottom:1px solid rgba(255,255,255,.06); flex-shrink:0; }
+    .side-tab { flex:1; padding:.7rem; background:none; border:none; color:var(--text-secondary); font-family:var(--font-ui); font-size:.73rem; font-weight:700; letter-spacing:1.5px; cursor:pointer; transition:var(--transition); border-bottom:2px solid transparent; position:relative; }
+    .side-tab.active { color:var(--accent-cyan); border-bottom-color:var(--accent-cyan); }
+
+    /* chat */
+    #tabChat { display:flex; flex-direction:column; flex:1; overflow:hidden; }
+    #tabChat:not(.active) { display:none; }
+    .chat-messages { flex:1; overflow-y:auto; padding:.75rem 1rem; display:flex; flex-direction:column; gap:.4rem; }
+    .chat-messages::-webkit-scrollbar { width:3px; }
+    .chat-msg { display:flex; gap:.45rem; animation:fadeInUp .2s ease; }
+    .cmsg-av { width:26px; height:26px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:.8rem; flex-shrink:0; margin-top:2px; }
+    .cmsg-body { flex:1; min-width:0; }
+    .cmsg-name { font-family:var(--font-ui); font-size:.68rem; font-weight:700; margin-bottom:2px; }
+    .cmsg-text { font-size:.8rem; color:var(--text-primary); line-height:1.45; word-break:break-word; }
+    .cmsg-time { font-size:.6rem; color:var(--text-dim); margin-top:1px; }
+    .sys-msg { text-align:center; font-family:var(--font-ui); font-size:.68rem; color:var(--text-dim); padding:.2rem 0; }
+    .reactions-row { display:flex; gap:.3rem; padding:.5rem 1rem; border-top:1px solid rgba(255,255,255,.05); background:rgba(0,0,0,.2); justify-content:center; flex-shrink:0; flex-wrap:wrap; }
+    .rct-btn { background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.08); border-radius:6px; padding:.28rem .5rem; font-size:1rem; cursor:pointer; transition:var(--transition); line-height:1; }
+    .rct-btn:hover { background:rgba(255,255,255,.14); transform:scale(1.3); }
+    .chat-input-row { padding:.625rem .875rem; border-top:1px solid rgba(255,255,255,.06); display:flex; gap:.45rem; flex-shrink:0; }
+    #chatInput { flex:1; background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.1); border-radius:var(--radius-sm); padding:.5rem .875rem; color:var(--text-primary); font-family:var(--font-body); font-size:.8rem; outline:none; transition:var(--transition); }
+    #chatInput:focus { border-color:var(--accent-cyan); }
+    #chatInput::placeholder { color:var(--text-dim); }
+    #chatSendBtn { width:34px; height:34px; border-radius:var(--radius-sm); background:var(--grad-accent); border:none; cursor:pointer; display:flex; align-items:center; justify-content:center; flex-shrink:0; transition:var(--transition); }
+    #chatSendBtn:hover { opacity:.85; transform:scale(1.06); }
+
+    /* members tab */
+    #tabMembers { display:none; flex-direction:column; overflow-y:auto; flex:1; padding:.75rem; gap:.4rem; }
+    #tabMembers.active { display:flex; }
+    .member-row { display:flex; align-items:center; gap:.625rem; padding:.55rem .75rem; border-radius:var(--radius-sm); background:rgba(255,255,255,.03); }
+    .mbr-av { width:32px; height:32px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:1rem; border:2px solid; flex-shrink:0; }
+    .mbr-name { font-family:var(--font-ui); font-size:.85rem; font-weight:600; color:var(--text-primary); }
+
+    /* chart tab */
+    #tabChart { display:none; flex-direction:column; padding:.875rem 1rem; gap:.875rem; overflow-y:auto; flex:1; }
+    #tabChart.active { display:flex; }
+    .chart-lbl { font-family:var(--font-ui); font-size:.68rem; color:var(--text-dim); letter-spacing:2px; }
+    .chart-wrap { background:rgba(0,0,0,.3); border:1px solid rgba(255,255,255,.06); border-radius:var(--radius-md); padding:.875rem; }
+    #rxChartCanvas { width:100%!important; height:120px!important; }
+    .stat-grid2 { display:grid; grid-template-columns:1fr 1fr; gap:.5rem; }
+    .stat2 { background:rgba(255,255,255,.03); border:1px solid rgba(255,255,255,.06); border-radius:var(--radius-sm); padding:.65rem; text-align:center; }
+    .stat2-val { font-family:var(--font-display); font-size:1.3rem; font-weight:700; color:var(--accent-cyan); }
+    .stat2-lbl { font-family:var(--font-ui); font-size:.62rem; color:var(--text-dim); letter-spacing:1px; }
+    .emoji-rows { display:flex; flex-direction:column; gap:.35rem; }
+    .emrow { display:flex; align-items:center; gap:.5rem; }
+    .emrow-ico { font-size:.95rem; width:20px; text-align:center; }
+    .emrow-track { flex:1; height:5px; background:rgba(255,255,255,.07); border-radius:3px; overflow:hidden; }
+    .emrow-fill { height:100%; background:var(--grad-accent); border-radius:3px; transition:width .5s ease; }
+    .emrow-cnt { font-family:var(--font-ui); font-size:.68rem; color:var(--text-secondary); width:22px; text-align:right; }
+
+    /* floating reactions */
+    #rxCanvas { position:fixed; inset:0; pointer-events:none; z-index:9999; overflow:hidden; }
+    .float-rx { position:absolute; font-size:2rem; pointer-events:none; animation:floatUp 2.6s ease-out forwards; }
+    @keyframes floatUp { 0%{opacity:1;transform:translateY(0) scale(1)} 70%{opacity:.9;transform:translateY(-200px) scale(1.25)} 100%{opacity:0;transform:translateY(-290px) scale(.7)} }
+
+    /* toasts */
+    .wt-toast { position:fixed; bottom:1.5rem; left:50%; transform:translateX(-50%) translateY(80px); background:var(--bg-card); border:1px solid var(--border-glow); border-radius:50px; padding:.55rem 1.4rem; font-family:var(--font-ui); font-size:.82rem; color:var(--text-primary); z-index:9999; transition:transform .3s cubic-bezier(.4,0,.2,1); white-space:nowrap; box-shadow:var(--shadow-cyan); pointer-events:none; }
+    .wt-toast.show { transform:translateX(-50%) translateY(0); }
+    .copy-flash { position:fixed; top:88px; right:1.5rem; background:rgba(0,229,255,.12); border:1px solid var(--accent-cyan); border-radius:var(--radius-sm); padding:.45rem .875rem; font-family:var(--font-ui); font-size:.78rem; color:var(--accent-cyan); z-index:9999; pointer-events:none; opacity:0; transition:opacity .3s; }
+    .copy-flash.show { opacity:1; }
+
+    /* loading state */
+    .search-loading { text-align:center; padding:2rem; font-family:var(--font-ui); font-size:.8rem; color:var(--text-dim); letter-spacing:1px; }
+    .empty-state { text-align:center; padding:2rem; font-family:var(--font-ui); font-size:.8rem; color:var(--text-dim); }
+
+    @media(max-width:768px){
+      .party-layout { grid-template-columns:1fr; grid-template-rows:56vw 1fr; }
+      .side-panel { border-left:none; border-top:1px solid var(--border-glow); }
+    }
+  </style>
+</head>
+<body>
+
+<!-- NAVBAR -->
+<nav class="navbar">
+  <a href="index.html" class="nav-logo">CINEVERSE</a>
+  <ul class="nav-links">
+    <li><a href="index.html">HOME</a></li>
+    <li><a href="search.html">BROWSE</a></li>
+    <li><a href="leaderboard.html">LEADERBOARD</a></li>
+    <li><a href="forum.html">FORUM</a></li>
+    <li><a href="watch-together.html" class="active">WATCH TOGETHER</a></li>
+    <li id="navProfileLink" style="display:none"><a href="profile.html">PROFILE</a></li>
+  </ul>
+  <div class="nav-right">
+    <div id="navAuthArea">
+      <button class="btn-login-nav" onclick="window.location.href='index.html'">LOGIN / JOIN</button>
+    </div>
+  </div>
+</nav>
+
+<div id="rxCanvas"></div>
+<div class="copy-flash" id="copyFlash">✓ Link copied!</div>
+<div class="wt-toast" id="wtToast"></div>
+
+<!-- ════════════════════════════════
+     LOBBY
+════════════════════════════════ -->
+<div class="wt-page" id="lobbyScreen">
+<div id="lobbyInner">
+  <div style="display:flex;flex-direction:column;align-items:center;gap:2rem;padding:2.5rem 1.5rem 4rem">
+
+    <div class="lobby-hero">
+      <div class="lobby-title">🎬 WATCH TOGETHER</div>
+      <div class="lobby-sub">Sync movies with friends — live chat, reactions &amp; charts</div>
+    </div>
+
+    <!-- ── CREATE FLOW ── -->
+    <div class="lobby-box" id="createBox">
+      <div class="lbox-title">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
+        CREATE A WATCH PARTY
+      </div>
+
+      <!-- Steps indicator -->
+      <div class="steps-bar">
+        <div class="step-item active" id="step1Ind"><div class="step-num">1</div>PICK MOVIE</div>
+        <div class="step-arrow"></div>
+        <div class="step-item" id="step2Ind"><div class="step-num">2</div>CHOOSE SERVER</div>
+        <div class="step-arrow"></div>
+        <div class="step-item" id="step3Ind"><div class="step-num">3</div>START PARTY</div>
+      </div>
+
+      <!-- STEP 1: Search -->
+      <div id="step1">
+        <div class="field-label">SEARCH MOVIE OR TV SHOW</div>
+        <div class="search-row">
+          <input type="text" class="lsearch-input" id="movieSearchInput" placeholder="e.g. Inception, Breaking Bad, Avengers..." autocomplete="off"/>
+          <button class="lsearch-btn" id="movieSearchBtn" onclick="searchMovies()">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="vertical-align:middle;margin-right:4px"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>SEARCH
+          </button>
+        </div>
+        <div id="searchResultsArea"></div>
+      </div>
+
+      <!-- STEP 2: Server + TV options (hidden until movie selected) -->
+      <div id="step2" style="display:none">
+        <div class="selected-banner show" id="selectedBanner">
+          <img class="sel-poster" id="selPoster" src="" alt=""/>
+          <div>
+            <div class="sel-title" id="selTitle">—</div>
+            <div class="sel-meta" id="selMeta">—</div>
+          </div>
+          <button class="sel-change" onclick="resetMoviePick()">✎ Change</button>
+        </div>
+
+        <!-- TV season/episode -->
+        <div id="tvOptions" style="display:none">
+          <div class="field-label" style="margin-top:.25rem">SEASON &amp; EPISODE</div>
+          <div class="tv-options">
+            <select class="tv-select" id="tvSeason" onchange="populateEpisodes()">
+              <option value="1">Season 1</option>
+            </select>
+            <select class="tv-select" id="tvEpisode">
+              <option value="1">Episode 1</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="field-label" style="margin-top:.25rem">CHOOSE STREAMING SERVER</div>
+        <div class="server-grid" id="serverGrid">
+          <!-- populated by JS -->
+        </div>
+        <div style="font-family:var(--font-ui);font-size:.7rem;color:var(--text-dim);text-align:center;margin-top:.25rem">
+          💡 If one server doesn't load, switch to another — they all stream the same movie
+        </div>
+      </div>
+
+      <!-- STEP 3: Name + Launch -->
+      <div id="step3" style="display:none">
+        <div class="field-label">YOUR DISPLAY NAME</div>
+        <input type="text" class="lobby-input" id="createName" placeholder="Enter your name..." maxlength="24"/>
+        <button class="btn btn-primary" id="createRoomBtn" style="width:100%;justify-content:center;margin-top:.25rem" onclick="createRoom()">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5,3 19,12 5,21"/></svg>
+          LAUNCH WATCH PARTY
+        </button>
+      </div>
+    </div>
+
+    <!-- ── DIVIDER ── -->
+    <div class="lor-divider" style="width:100%;max-width:700px">OR JOIN A FRIEND'S ROOM</div>
+
+    <!-- ── JOIN FLOW ── -->
+    <div class="lobby-box" id="joinBox" style="gap:1rem">
+      <div class="lbox-title">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h6v6M10 14L21 3M9 21H3v-6M3 21l7-7"/></svg>
+        JOIN A WATCH PARTY
+      </div>
+      <div class="field-label">YOUR DISPLAY NAME</div>
+      <input type="text" class="lobby-input" id="joinName" placeholder="Enter your name..." maxlength="24"/>
+      <div class="field-label">ROOM CODE OR INVITE LINK</div>
+      <div class="join-code-row">
+        <input type="text" class="code-input" id="joinRoomId" placeholder="XXXXXXXX" maxlength="60"/>
+        <button class="btn btn-outline" id="joinRoomBtn" onclick="joinRoom()" style="white-space:nowrap">JOIN →</button>
+      </div>
+    </div>
+
+    <div class="feature-pills">
+      <div class="fp">⚡ Perfect sync</div>
+      <div class="fp">💬 Live chat</div>
+      <div class="fp">🎉 Reactions</div>
+      <div class="fp">📊 Live chart</div>
+      <div class="fp">👥 Members</div>
+      <div class="fp">🔗 Shareable link</div>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- ════════════════════════════════
+     PARTY ROOM
+════════════════════════════════ -->
+<div class="wt-page" id="partyScreen" style="padding-top:0;display:none">
+  <div class="party-layout">
+
+    <!-- VIDEO SIDE -->
+    <div class="video-panel">
+      <div class="video-wrapper">
+        <iframe id="partyIframe" allowfullscreen allow="autoplay; fullscreen; encrypted-media; picture-in-picture; clipboard-write"></iframe>
+        <!-- Click interceptor: catches all clicks on video, syncs play/pause to all peers -->
+        <div id="clickInterceptor" onclick="handleVideoClick()" title="Click to play/pause"></div>
+        <!-- Flash indicator shown when play/pause is triggered -->
+        <div id="overlayFlash"></div>
+        <!-- Countdown overlay: shown before everyone's iframe reloads in sync -->
+        <div id="countdownOverlay">
+          <div id="countdownNum">3</div>
+          <div id="countdownLabel">SYNCING PLAYBACK...</div>
+        </div>
+        <div class="sync-overlay" id="syncOverlay">
+          <div class="sync-spinner"></div>
+          <div class="sync-text">SYNCING...</div>
+        </div>
+      </div>
+      <div class="video-controls">
+        <!-- HOST CONTROLS (shown only to host) -->
+        <div id="hostControls" style="display:none;align-items:center;gap:.6rem;flex-shrink:0">
+          <button class="vc-btn" id="vcPlayBtn" title="Play / Pause">▶</button>
+          <input type="range" class="vc-progress" id="vcSeek" min="0" max="7200" value="0"/>
+          <span class="vc-time" id="vcTime">00:00</span>
+          <div class="host-badge-pill">👑 HOST</div>
+        </div>
+        <!-- GUEST CONTROLS (shown to non-hosts) -->
+        <div id="guestControls" style="display:none;align-items:center;gap:.6rem;flex-shrink:0">
+          <span class="vc-time" id="vcTimeGuest">00:00</span>
+          <div class="vc-progress-static">
+            <div class="vc-progress-fill" id="vcProgressFill" style="width:0%"></div>
+          </div>
+          <button class="ask-pause-btn" id="askPauseBtn" onclick="askHostToPause()">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+            ASK TO PAUSE
+          </button>
+        </div>
+        <!-- SHARED RIGHT SIDE -->
+        <div style="flex:1"></div>
+        <div class="vc-room-pill" id="vcRoomPill" onclick="copyInviteLink()">🔗 --------</div>
+        <button class="vc-btn" id="vcSrvBtn" title="Switch server" style="font-size:.65rem;letter-spacing:.5px;width:auto;padding:0 .6rem;border-radius:var(--radius-sm)">⚙ SRV</button>
+        <button class="vc-btn" onclick="leaveParty()" title="Leave" style="border-color:rgba(255,45,120,.4);color:var(--accent-pink)">✕</button>
+      </div>
+    </div>
+
+    <!-- SIDE PANEL -->
+    <div class="side-panel">
+      <div class="party-header">
+        <img class="party-poster-sm" id="partyPoster" src="" alt="" onerror="this.style.display='none'"/>
+        <div>
+          <div class="party-movie-name" id="partyMovieTitle">Loading...</div>
+          <div class="party-meta">👑 <span id="partyHostName">Host</span> · <span id="partyMemberCount">1</span> watching</div>
+        </div>
+      </div>
+
+      <div class="side-tabs">
+        <button class="side-tab active" onclick="switchTab('chat',this)">CHAT</button>
+        <button class="side-tab" onclick="switchTab('members',this)">MEMBERS</button>
+        <button class="side-tab" onclick="switchTab('chart',this)">CHART</button>
+      </div>
+
+      <!-- CHAT -->
+      <div id="tabChat" class="active">
+        <div class="chat-messages" id="chatMessages"></div>
+        <div class="reactions-row">
+          <button class="rct-btn" onclick="sendReaction('❤️')">❤️</button>
+          <button class="rct-btn" onclick="sendReaction('😂')">😂</button>
+          <button class="rct-btn" onclick="sendReaction('😮')">😮</button>
+          <button class="rct-btn" onclick="sendReaction('🔥')">🔥</button>
+          <button class="rct-btn" onclick="sendReaction('👏')">👏</button>
+          <button class="rct-btn" onclick="sendReaction('💀')">💀</button>
+          <button class="rct-btn" onclick="sendReaction('🎬')">🎬</button>
+          <button class="rct-btn" onclick="sendReaction('⭐')">⭐</button>
+        </div>
+        <div class="chat-input-row">
+          <input type="text" id="chatInput" placeholder="Say something..." maxlength="300" autocomplete="off"/>
+          <button id="chatSendBtn"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22,2 15,22 11,13 2,9"/></svg></button>
+        </div>
+      </div>
+
+      <!-- MEMBERS -->
+      <div id="tabMembers"></div>
+
+      <!-- CHART -->
+      <div id="tabChart">
+        <div class="chart-lbl">LIVE REACTION PULSE</div>
+        <div class="chart-wrap"><canvas id="rxChartCanvas"></canvas></div>
+        <div class="stat-grid2">
+          <div class="stat2"><div class="stat2-val" id="stMsg">0</div><div class="stat2-lbl">MESSAGES</div></div>
+          <div class="stat2"><div class="stat2-val" id="stRx">0</div><div class="stat2-lbl">REACTIONS</div></div>
+          <div class="stat2"><div class="stat2-val" id="stMbr">1</div><div class="stat2-lbl">VIEWERS</div></div>
+          <div class="stat2"><div class="stat2-val" id="stHype">0%</div><div class="stat2-lbl">HYPE SCORE</div></div>
+        </div>
+        <div class="chart-lbl">EMOJI BREAKDOWN</div>
+        <div class="emoji-rows" id="emojiRows"></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ════════════════════════════════
+     ASK-TO-PAUSE POPUP (shown to host)
+════════════════════════════════ -->
+<div id="pauseRequestPopup" style="display:none;position:fixed;inset:0;z-index:6000;align-items:center;justify-content:center">
+  <div class="popup-backdrop" onclick="dismissPauseRequest()"></div>
+  <div class="popup-card">
+    <div class="popup-icon">⏸</div>
+    <div class="popup-title">Pause Requested</div>
+    <div class="popup-msg" id="pauseRequestMsg">A viewer wants you to pause.</div>
+    <div class="popup-actions">
+      <button class="popup-btn popup-btn-yes" onclick="acceptPauseRequest()">✓ Pause for everyone</button>
+      <button class="popup-btn popup-btn-no" onclick="dismissPauseRequest()">✕ Keep playing</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════
+     SERVER SWITCH MODAL (in-party)
+════════════════════════════════ -->
+<div id="srvModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:5000;align-items:center;justify-content:center">
+  <div style="background:var(--bg-card);border:1px solid var(--border-glow);border-radius:var(--radius-lg);padding:1.5rem;width:90%;max-width:480px;max-height:80vh;overflow-y:auto">
+    <div style="font-family:var(--font-display);font-size:.85rem;color:var(--accent-cyan);letter-spacing:2px;margin-bottom:1rem">⚙ SWITCH SERVER</div>
+    <div class="server-grid" id="inPartyServerGrid"></div>
+    <button onclick="closeSrvModal()" style="margin-top:1rem;width:100%;padding:.55rem;background:none;border:1px solid rgba(255,255,255,.1);border-radius:var(--radius-sm);color:var(--text-secondary);font-family:var(--font-ui);font-size:.8rem;cursor:pointer">CLOSE</button>
+  </div>
+</div>
+
+<!-- ════════════════════════════════
+     SCRIPTS
+════════════════════════════════ -->
+<script src="js/api.js"></script>
+<script src="js/nav.js"></script>
+<script>
+// Auto-detect: use localhost when running locally, Railway when deployed
+const _WP_LOCAL = 'http://localhost:5000';
+const _WP_PROD  = 'https://cineverse-backend.onrender.com';
+const _WP_BASE  = ['localhost','127.0.0.1','0.0.0.0'].includes(location.hostname) ? _WP_LOCAL : _WP_PROD;
+const API_WS    = _WP_BASE;
+const API_REST  = _WP_BASE + '/api';
+const IMG      = 'https://image.tmdb.org/t/p/';
+
+// ── EMBED SERVERS ─────────────────────────────────────────────────
+function slugify(s){ return (s||'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,''); }
+const SERVERS = [
+  { name:'vidfast.pro',        movie:id=>`https://vidfast.pro/movie/${id}?autoPlay=true`,                       tv:(id,s,e)=>`https://vidfast.pro/tv/${id}/${s}/${e}?autoPlay=true` },
+  { name:'vidsrc.cc',          movie:id=>`https://vidsrc.cc/v3/embed/movie/${id}`,                              tv:(id,s,e)=>`https://vidsrc.cc/v3/embed/tv/${id}/${s}/${e}` },
+  { name:'vidsrc.xyz',         movie:id=>`https://vidsrc.xyz/embed/movie/${id}?autoplay=1`,                     tv:(id,s,e)=>`https://vidsrc.xyz/embed/tv/${id}/${s}/${e}?autoplay=1` },
+  { name:'player.vidify.top',  movie:id=>`https://player.vidify.top/embed/movie/${id}?autoplay=true`,           tv:(id,s,e)=>`https://player.vidify.top/embed/tv/${id}/${s}/${e}?autoplay=true` },
+  { name:'player.vidplus.to',  movie:id=>`https://player.vidplus.to/embed/movie/${id}?autoplay=true&server=2`,  tv:(id,s,e)=>`https://player.vidplus.to/embed/tv/${id}/${s}/${e}?autoplay=true` },
+  { name:'player.videasy.net', movie:id=>`https://player.videasy.net/movie/${id}`,                              tv:(id,s,e)=>`https://player.videasy.net/${id}/${s}/${e}` },
+  { name:'vidapi.xyz',         movie:id=>`https://vidapi.xyz/embed/movie/${id}`,                                tv:(id,s,e)=>`https://vidapi.xyz/embed/tv/${id}&s=${s}&e=${e}` },
+  { name:'multiembed.mov',     movie:id=>`https://multiembed.mov/directstream.php?video_id=${id}&tmdb=1`,       tv:(id,s,e)=>`https://multiembed.mov/directstream.php?video_id=${id}&tmdb=1&s=${s}&e=${e}` },
+  { name:'nunflix.org',        movie:id=>`https://nunflix.org/watch/movie/${id}`,                               tv:(id,s,e)=>`https://nunflix.org/watch/tv/${id}/${s}/${e}` },
+  { name:'111movies.com',      movie:id=>`https://111movies.com/movie/${id}`,                                   tv:(id,s,e)=>`https://111movies.com/tv/${id}/${s}/${e}` },
+  { name:'player.vidzee.wtf',  movie:id=>`https://player.vidzee.wtf/embed/movie/${id}`,                        tv:(id,s,e)=>`https://player.vidzee.wtf/embed/tv/${id}/${s}/${e}` },
+  { name:'vidrock.net',        movie:id=>`https://vidrock.net/movie/${id}?autoplay=true`,                       tv:(id,s,e)=>`https://vidrock.net/tv/${id}/${s}/${e}?autoplay=true` },
+];
+
+// ── STATE ─────────────────────────────────────────────────────────
+let pickedMovie   = null; // { id, title, year, poster, type, seasons }
+let pickedServer  = 0;
+let currentVideoSrc = '';
+
+let socket       = null;
+let myName       = '';
+let myEmoji      = '🎬';
+let myColor      = '#00e5ff';
+let currentRoomId= '';
+let isHost       = false;
+let playerTime   = 0;
+let playerPlaying= false;
+let seekTimer    = null;
+
+let totalMsg=0, totalRx=0, memberCnt=1;
+const RXCOUNTS = {'❤️':0,'😂':0,'😮':0,'🔥':0,'👏':0,'💀':0,'🎬':0,'⭐':0};
+const chartData  = new Array(30).fill(0);
+let   chartObj   = null;
+
+// ── INIT ─────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', async ()=>{
+  await initNav();
+  try {
+    const u = await CV.getCurrentUser();
+    if(u){
+      document.getElementById('createName').value = u.name||u.username;
+      document.getElementById('joinName').value   = u.name||u.username;
+      myEmoji = u.avatarEmoji||'🎬';
+      const C=['#ff6b6b','#feca57','#48dbfb','#ff9ff3','#54a0ff','#5f27cd','#00d2d3','#1dd1a1'];
+      myColor = C[u.avatarColor||0]||'#00e5ff';
+    }
+  } catch(e){}
+
+  // Auto-join from URL param
+  const code = new URLSearchParams(location.search).get('room');
+  if(code){
+    document.getElementById('joinRoomId').value = code.toUpperCase();
+    document.getElementById('joinBox').scrollIntoView({behavior:'smooth'});
+  }
+
+  // Event listeners
+  document.getElementById('movieSearchInput').addEventListener('keydown',e=>{ if(e.key==='Enter') searchMovies(); });
+  document.getElementById('chatInput').addEventListener('keydown',e=>{ if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendChatMsg();} });
+  document.getElementById('chatSendBtn').addEventListener('click', sendChatMsg);
+  document.getElementById('vcPlayBtn').addEventListener('click', togglePlay);
+  document.getElementById('vcSeek').addEventListener('input', onSeekDrag);
+  document.getElementById('vcSeek').addEventListener('change', onSeek);
+  document.getElementById('vcSrvBtn').addEventListener('click', openSrvModal);
+});
+
+// ══════════════════════════════════════════════════════════════════
+// STEP 1 — MOVIE SEARCH
+// ══════════════════════════════════════════════════════════════════
+async function searchMovies(){
+  const q = document.getElementById('movieSearchInput').value.trim();
+  if(!q) return showToast('Enter a movie or show name');
+  const btn = document.getElementById('movieSearchBtn');
+  btn.disabled=true; btn.textContent='Searching...';
+  document.getElementById('searchResultsArea').innerHTML = '<div class="search-loading">🔍 Searching...</div>';
+  try {
+    const data = await CV.tmdbSearch(q,1);
+    const results = (data.results||[]).filter(r=>r.media_type!=='person').slice(0,12);
+    renderSearchResults(results);
+  } catch(e){
+    document.getElementById('searchResultsArea').innerHTML = `<div class="empty-state">❌ ${e.message}</div>`;
+  }
+  btn.disabled=false; btn.innerHTML='<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="vertical-align:middle;margin-right:4px"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>SEARCH';
+}
+
+function renderSearchResults(results){
+  if(!results.length){ document.getElementById('searchResultsArea').innerHTML='<div class="empty-state">No results found. Try a different title.</div>'; return; }
+  const grid = document.createElement('div');
+  grid.className='search-results-grid';
+  grid.style.marginTop='.875rem';
+  results.forEach(r=>{
+    const isTV  = r.media_type==='tv';
+    const title = r.title||r.name||'Unknown';
+    const year  = (r.release_date||r.first_air_date||'').slice(0,4);
+    const poster= r.poster_path ? `${IMG}w154${r.poster_path}` : 'https://placehold.co/154x231/0d1328/445566?text=No+Poster';
+    const card  = document.createElement('div');
+    card.className='result-card';
+    card.innerHTML=`<img src="${poster}" alt="${xss(title)}" loading="lazy"/>
+      <div class="result-card-info">
+        <div class="result-card-title">${xss(title)}</div>
+        <div class="result-card-year">${year}</div>
+        <span class="result-card-type ${isTV?'type-tv':'type-movie'}">${isTV?'TV':'MOVIE'}</span>
+      </div>`;
+    card.addEventListener('click',()=>pickMovie(r, card));
+    grid.appendChild(card);
+  });
+  document.getElementById('searchResultsArea').innerHTML='';
+  document.getElementById('searchResultsArea').appendChild(grid);
+}
+
+async function pickMovie(r, card){
+  document.querySelectorAll('.result-card').forEach(c=>c.classList.remove('selected'));
+  card.classList.add('selected');
+
+  const isTV  = r.media_type==='tv';
+  const title = r.title||r.name;
+  const year  = (r.release_date||r.first_air_date||'').slice(0,4);
+  const poster= r.poster_path ? `${IMG}w92${r.poster_path}` : '';
+
+  pickedMovie = { id:r.id, title, year, poster, type:isTV?'tv':'movie', seasons:1, episodes:20 };
+
+  // Fetch season count for TV
+  if(isTV){
+    try {
+      const d = await CV.tmdbTV(r.id);
+      pickedMovie.seasons = d.number_of_seasons||1;
+    } catch(e){}
+  }
+
+  // Update banner
+  document.getElementById('selPoster').src = poster||'https://placehold.co/92x138/0d1328/445566?text=?';
+  document.getElementById('selTitle').textContent = title;
+  document.getElementById('selMeta').textContent  = `${isTV?'TV Show':'Movie'} · ${year||'—'}`;
+
+  // TV season/episode
+  const tvOpts = document.getElementById('tvOptions');
+  if(isTV){
+    tvOpts.style.display='block';
+    const sel = document.getElementById('tvSeason');
+    sel.innerHTML = Array.from({length:pickedMovie.seasons},(_,i)=>`<option value="${i+1}">Season ${i+1}</option>`).join('');
+    populateEpisodes();
+  } else {
+    tvOpts.style.display='none';
+  }
+
+  // Show step 2
+  document.getElementById('step2').style.display='block';
+  buildServerGrid(document.getElementById('serverGrid'));
+  setStepActive(2);
+
+  // Show step 3 after brief delay
+  setTimeout(()=>{
+    document.getElementById('step3').style.display='block';
+    setStepActive(3);
+  }, 300);
+}
+
+function populateEpisodes(){
+  const s   = parseInt(document.getElementById('tvSeason').value)||1;
+  const eps = s===1 ? (pickedMovie?.episodes||20) : 20;
+  document.getElementById('tvEpisode').innerHTML = Array.from({length:eps},(_,i)=>`<option value="${i+1}">Episode ${i+1}</option>`).join('');
+}
+
+function resetMoviePick(){
+  pickedMovie=null; pickedServer=0;
+  document.getElementById('step2').style.display='none';
+  document.getElementById('step3').style.display='none';
+  document.getElementById('searchResultsArea').innerHTML='';
+  document.getElementById('movieSearchInput').value='';
+  document.getElementById('movieSearchInput').focus();
+  setStepActive(1);
+}
+
+function buildServerGrid(container){
+  container.innerHTML = SERVERS.map((s,i)=>`
+    <button class="srv-btn${i===pickedServer?' active':''}" onclick="selectServer(${i},this)">
+      <span class="srv-dot"></span>${s.name}
+    </button>`).join('');
+}
+
+function selectServer(i, btn){
+  pickedServer=i;
+  btn.closest('.server-grid').querySelectorAll('.srv-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+function getEmbedUrl(){
+  if(!pickedMovie) return '';
+  const srv = SERVERS[pickedServer];
+  if(pickedMovie.type==='tv'){
+    const s = parseInt(document.getElementById('tvSeason')?.value)||1;
+    const e = parseInt(document.getElementById('tvEpisode')?.value)||1;
+    return srv.tv(pickedMovie.id, s, e);
+  }
+  return srv.movie(pickedMovie.id);
+}
+
+function setStepActive(n){
+  [1,2,3].forEach(i=>{
+    const el=document.getElementById(`step${i}Ind`);
+    el.classList.remove('active','done');
+    if(i<n) el.classList.add('done');
+    else if(i===n) el.classList.add('active');
+  });
+}
+
+// ══════════════════════════════════════════════════════════════════
+// CREATE ROOM
+// ══════════════════════════════════════════════════════════════════
+async function createRoom(){
+  const name = document.getElementById('createName').value.trim();
+  if(!name) return showToast('Enter your display name');
+  if(!pickedMovie) return showToast('Pick a movie first');
+
+  const videoSrc = getEmbedUrl();
+  if(!videoSrc) return showToast('Could not build video URL');
+
+  const btn = document.getElementById('createRoomBtn');
+  btn.disabled=true; btn.textContent='Creating party...';
+
+  try {
+    const token   = typeof getToken!=='undefined' ? getToken() : null;
+    const headers = {'Content-Type':'application/json'};
+    if(token) headers['Authorization']='Bearer '+token;
+
+    const res  = await fetch(`${API_REST}/watchparty/create`,{
+      method:'POST', headers,
+      body:JSON.stringify({ videoSrc, movieTitle:pickedMovie.title, posterPath:pickedMovie.poster, mediaType:pickedMovie.type })
+    });
+    const data = await res.json();
+    if(!data.success) throw new Error(data.message||'Failed to create room');
+
+    myName=name; isHost=true; currentVideoSrc=videoSrc;
+    connectSocket(data.roomId, videoSrc, pickedMovie.title, pickedMovie.poster);
+  } catch(e){
+    showToast('❌ '+e.message);
+    btn.disabled=false;
+    btn.innerHTML='<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5,3 19,12 5,21"/></svg> LAUNCH WATCH PARTY';
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════
+// JOIN ROOM
+// ══════════════════════════════════════════════════════════════════
+async function joinRoom(){
+  const name = document.getElementById('joinName').value.trim();
+  let   code = document.getElementById('joinRoomId').value.trim().toUpperCase();
+  const m    = code.match(/[A-Z0-9]{8}/);
+  if(m) code=m[0];
+  if(!name) return showToast('Enter your display name');
+  if(!code||code.length!==8) return showToast('Enter a valid 8-character room code');
+
+  const btn=document.getElementById('joinRoomBtn');
+  btn.disabled=true; btn.textContent='Joining...';
+  try {
+    const res  = await fetch(`${API_REST}/watchparty/${code}`);
+    const data = await res.json();
+    if(!data.success) throw new Error(data.message||'Room not found');
+    myName=name; isHost=false;
+    connectSocket(code, null, data.room.movieTitle, data.room.posterPath);
+  } catch(e){
+    showToast('❌ '+e.message);
+    btn.disabled=false; btn.textContent='JOIN →';
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════
+// SOCKET
+// ══════════════════════════════════════════════════════════════════
+function connectSocket(roomId, videoSrc, movieTitle, posterPath){
+  currentRoomId=roomId;
+  socket = io(`${API_WS}/watchparty`,{
+    transports:['websocket','polling'],
+    query:{ roomId, displayName:myName, avatarEmoji:myEmoji, avatarColor:myColor, isHost: isHost ? '1' : '0' }
+  });
+
+  socket.on('connect',()=>{
+    enterPartyScreen(roomId, videoSrc, movieTitle, posterPath);
+    measureClockOffset();
+    socket.emit('player:sync_request');
+  });
+
+  socket.on('room:init',data=>{
+    // ALWAYS set currentVideoSrc first — guests need it before any _fireIframe call
+    if(data.videoSrc) currentVideoSrc = data.videoSrc;
+    document.getElementById('partyMovieTitle').textContent=data.movieTitle||'Watch Party';
+    if(data.posterPath) document.getElementById('partyPoster').src=data.posterPath.startsWith('http')?data.posterPath:`${IMG}w92${data.posterPath}`;
+    data.chat.forEach(m=>appendChat(m));
+    renderMembers(data.members);
+    const st = data.state;
+    if(st && (st.currentTime > 0 || st.playing)){
+      // Use scheduleSync so clock-offset is applied correctly for late joiners
+      scheduleSync({
+        serverNow: st.serverNow || Date.now(),
+        syncDelay: 1200,
+        videoTime:  st.currentTime,
+        autoplay:   st.playing
+      });
+    } else {
+      // Fresh room — load iframe directly, no countdown needed
+      if(currentVideoSrc) document.getElementById('partyIframe').src = currentVideoSrc;
+      hideSyncOverlay();
+    }
+  });
+
+  // ── DB-backed sync events ──
+  socket.on('player:play',  onSyncPlay);
+  socket.on('player:pause', onSyncPause);
+  socket.on('player:seek',  onSyncSeek);
+  socket.on('player:sync',  applySyncState);
+
+  // Host promotion (when original host disconnects)
+  socket.on('host:promoted', ({message}) => {
+    isHost = true;
+    document.getElementById('hostControls').style.display='flex';
+    document.getElementById('guestControls').style.display='none';
+    showToast('👑 ' + message);
+  });
+
+  socket.on('chat:message',msg=>{ appendChat(msg); totalMsg++; document.getElementById('stMsg').textContent=totalMsg; bumpChart(); });
+  socket.on('system:message',({text})=>appendSysMsg(text));
+  socket.on('members:update',members=>{ renderMembers(members); memberCnt=members.length; document.getElementById('partyMemberCount').textContent=members.length; document.getElementById('stMbr').textContent=members.length; updateHype(); });
+  socket.on('reaction',({emoji,name})=>{ spawnFloat(emoji); totalRx++; RXCOUNTS[emoji]=(RXCOUNTS[emoji]||0)+1; document.getElementById('stRx').textContent=totalRx; updateEmojiRows(); bumpChart(); updateHype(); appendSysMsg(`${name} reacted ${emoji}`); });
+  // ── ASK-TO-PAUSE events ──
+  socket.on('pause_request', ({fromName}) => {
+    // Only host sees the popup
+    if(!isHost) return;
+    showPauseRequestPopup(fromName);
+  });
+  socket.on('pause_request_denied', ({fromName}) => {
+    // Guest gets notified host declined
+    showToast('❌ Host declined the pause request');
+    resetAskBtn();
+  });
+
+  socket.on('error',err=>showToast('❌ '+(err.message||'Error')));
+  socket.on('disconnect',()=>showToast('⚠️ Disconnected'));
+}
+
+// ══════════════════════════════════════════════════════════════════
+// PARTY SCREEN
+// ══════════════════════════════════════════════════════════════════
+function enterPartyScreen(roomId, videoSrc, movieTitle, posterPath){
+  document.getElementById('lobbyScreen').style.display='none';
+  document.getElementById('partyScreen').style.display='block';
+  if(videoSrc){ document.getElementById('partyIframe').src=videoSrc; currentVideoSrc=videoSrc; }
+  document.getElementById('vcRoomPill').textContent='🔗 '+roomId;
+  document.getElementById('partyMovieTitle').textContent=movieTitle||'Watch Party';
+  if(posterPath) document.getElementById('partyPoster').src=posterPath.startsWith('http')?posterPath:`${IMG}w92${posterPath}`;
+
+  // Show host or guest controls
+  if(isHost){
+    document.getElementById('hostControls').style.display='flex';
+    document.getElementById('guestControls').style.display='none';
+  } else {
+    document.getElementById('hostControls').style.display='none';
+    document.getElementById('guestControls').style.display='flex';
+  }
+
+  showSyncOverlay();
+  initChart();
+  updateEmojiRows();
+}
+
+// ══════════════════════════════════════════════════════════════════
+// SYNC ENGINE  — MongoDB-backed, server-clock-scheduled
+// ══════════════════════════════════════════════════════════════════
+//
+// The server (MongoDB) is the single source of truth.
+// On play/pause/seek the server writes to DB and broadcasts:
+//   { videoTime, serverNow, syncDelay }
+//
+// Each client:
+//   1. Measures its offset from server clock (timesync ping)
+//   2. Computes localFireAt = serverNow + syncDelay - clockOffset
+//   3. Waits until localFireAt, then loads iframe at videoTime
+//
+// This means all clients fire the iframe reload at the same
+// real-world moment regardless of network jitter.
+//
+// Host heartbeat every 5s keeps DB currentTime accurate.
+// ══════════════════════════════════════════════════════════════════
+
+// ── State ──────────────────────────────────────────────────────
+let _clockOffset  = 0;    // localMs - serverMs  (measured via timesync)
+let _syncTimer    = null; // pending scheduled reload setTimeout
+let _heartbeatInt = null; // host heartbeat interval
+let _tickInt      = null; // local progress ticker
+let _tickBase     = { wallMs: 0, videoSec: 0 }; // for drift-free ticker
+
+// ── Clock Sync ─────────────────────────────────────────────────
+function measureClockOffset() {
+  if (!socket) return;
+  const t0 = Date.now();
+  socket.emit('timesync', { clientNow: t0 });
+  socket.once('timesync', ({ serverNow }) => {
+    const rtt = Date.now() - t0;
+    _clockOffset = (t0 + Date.now()) / 2 - serverNow; // average send/receive
+    console.log(`[sync] clock offset: ${Math.round(_clockOffset)}ms  rtt: ${rtt}ms`);
+  });
+}
+
+// ── Ticker (drift-free local clock while playing) ───────────────
+function startTicker(fromVideoSec) {
+  stopTicker();
+  _tickBase = { wallMs: Date.now(), videoSec: fromVideoSec };
+  playerTime = fromVideoSec;
+  _tickInt = setInterval(() => {
+    playerTime = _tickBase.videoSec + (Date.now() - _tickBase.wallMs) / 1000;
+    updateTimeUI();
+  }, 500);
+  // Host heartbeat — dedicated interval every 5s (not inside the 500ms tick)
+  if (isHost) {
+    clearInterval(_heartbeatInt);
+    _heartbeatInt = setInterval(() => {
+      if (socket && playerPlaying) {
+        socket.emit('player:heartbeat', { videoTime: Math.round(playerTime) });
+      }
+    }, 5000);
+  }
+}
+
+function stopTicker() {
+  clearInterval(_tickInt);
+  clearInterval(_heartbeatInt);
+  _tickInt = null;
+  _heartbeatInt = null;
+}
+
+// ── Schedule a synchronized iframe reload ──────────────────────
+// serverNow  : server UTC ms at time of event
+// syncDelay  : ms until all clients should fire (e.g. 1500)
+// videoTime  : video seconds to load at
+// autoplay   : true = play, false = pause/seek
+function scheduleSync({ serverNow, syncDelay = 1500, videoTime, autoplay }) {
+  clearTimeout(_syncTimer);
+
+  // When should we fire in local time?
+  const fireAtLocal = (serverNow + syncDelay) - _clockOffset;
+  const delayMs     = Math.max(0, fireAtLocal - Date.now());
+
+  // Show overlay with countdown
+  const overlay = document.getElementById('countdownOverlay');
+  const numEl   = document.getElementById('countdownNum');
+  const lblEl   = document.getElementById('countdownLabel');
+  overlay.classList.add('show');
+  lblEl.textContent  = autoplay ? 'PLAYING IN...' : 'LOADING...';
+  numEl.textContent  = Math.ceil(delayMs / 1000) || 1;
+
+  const tickId = setInterval(() => {
+    const left = Math.ceil((fireAtLocal - Date.now()) / 1000);
+    numEl.textContent = left > 0 ? left : 1;
+  }, 200);
+
+  _syncTimer = setTimeout(() => {
+    clearInterval(tickId);
+    overlay.classList.remove('show');
+    _fireIframe(videoTime, autoplay);
+  }, delayMs);
+}
+
+// ── Actually load the iframe ────────────────────────────────────
+function _fireIframe(videoTime, autoplay) {
+  if (!currentVideoSrc) return;
+  const iframe = document.getElementById('partyIframe');
+  let url = currentVideoSrc;
+
+  // Strip all existing time/autoplay params
+  // Strip only exact param names to avoid corrupting params like 'season', 'episode'
+  url = url.replace(/([?&])(?:t|start|time_continue|autoplay|autoPlay)=[^&]*/g, '');
+  url = url.replace(/[?&]+$/, '');
+  const sep = url.includes('?') ? '&' : '?';
+  url += `${sep}t=${Math.round(videoTime)}`
+       + (autoplay ? '&autoplay=1&autoPlay=true' : '&autoplay=0&autoPlay=false');
+
+  showSyncOverlay();
+  iframe.src = 'about:blank';
+
+  setTimeout(() => {
+    iframe.src = url;
+    // Update local state
+    playerTime    = videoTime;
+    playerPlaying = autoplay;
+    document.getElementById('vcPlayBtn').textContent = autoplay ? '⏸' : '▶';
+    if (autoplay) startTicker(videoTime);
+    else          stopTicker();
+    updateTimeUI();
+    flashOverlay(autoplay ? '▶' : '⏸');
+    setTimeout(hideSyncOverlay, 1800);
+  }, 100);
+}
+
+// ── Controls ───────────────────────────────────────────────────
+function handleVideoClick() {
+  if (!isHost) {
+    showToast('👑 Only the host controls playback · Use "Ask to Pause" below');
+    return;
+  }
+  togglePlay();
+}
+
+function togglePlay() {
+  if (!socket) return showToast('Not connected');
+  if (!isHost)  return showToast('👑 Only the host can control playback');
+  if (playerPlaying) {
+    socket.emit('player:pause', { videoTime: Math.round(playerTime) });
+  } else {
+    socket.emit('player:play',  { videoTime: Math.round(playerTime) });
+  }
+}
+
+// ── Socket event handlers ──────────────────────────────────────
+function onSyncPlay({ videoTime, serverNow, syncDelay, by }) {
+  if (by && by !== myName) showToast('▶ ' + by + ' played');
+  scheduleSync({ serverNow, syncDelay, videoTime, autoplay: true });
+}
+
+function onSyncPause({ videoTime, by }) {
+  if (by && by !== myName) showToast('⏸ ' + by + ' paused');
+  clearTimeout(_syncTimer);
+  document.getElementById('countdownOverlay').classList.remove('show');
+  stopTicker();
+  playerTime    = videoTime;
+  playerPlaying = false;
+  document.getElementById('vcPlayBtn').textContent = '▶';
+  _fireIframe(videoTime, false);
+}
+
+function onSyncSeek({ videoTime, playing, serverNow, syncDelay, by }) {
+  if (by && by !== myName) showToast('⏩ ' + by + ' seeked');
+  scheduleSync({ serverNow, syncDelay, videoTime, autoplay: playing });
+}
+
+// ── Seek slider ────────────────────────────────────────────────
+let _seekDebounce = null;
+
+function onSeekDrag() {
+  if (!isHost) return;
+  playerTime = parseInt(document.getElementById('vcSeek').value) || 0;
+  updateTimeUI();
+}
+
+function onSeek() {
+  if (!socket || !isHost) return;
+  playerTime = parseInt(document.getElementById('vcSeek').value) || 0;
+  updateTimeUI();
+  clearTimeout(_seekDebounce);
+  _seekDebounce = setTimeout(() => {
+    socket.emit('player:seek', { videoTime: Math.round(playerTime) });
+  }, 80);
+}
+
+// ── Flash overlay ──────────────────────────────────────────────
+function flashOverlay(icon) {
+  const fl = document.getElementById('overlayFlash');
+  if (!fl) return;
+  fl.textContent = icon;
+  fl.style.opacity = '1';
+  fl.style.transform = 'translate(-50%,-50%) scale(1.2)';
+  clearTimeout(fl._t);
+  fl._t = setTimeout(() => {
+    fl.style.opacity = '0';
+    fl.style.transform = 'translate(-50%,-50%) scale(.8)';
+  }, 900);
+}
+
+// ── ASK-TO-PAUSE ───────────────────────────────────────────────────
+let askCooldown = false;
+
+function askHostToPause(){
+  if(!socket) return showToast('Not connected');
+  if(isHost)  return showToast('You are the host!');
+  if(askCooldown) return showToast('⏳ Please wait before asking again');
+
+  socket.emit('pause_request', { fromName: myName });
+
+  // Show sent state on button
+  const btn = document.getElementById('askPauseBtn');
+  btn.classList.add('sent');
+  btn.disabled = true;
+  btn.innerHTML = '✓ Request sent!';
+
+  // Cooldown 15s
+  askCooldown = true;
+  setTimeout(() => {
+    askCooldown = false;
+    resetAskBtn();
+  }, 15000);
+}
+
+function resetAskBtn(){
+  const btn = document.getElementById('askPauseBtn');
+  if(!btn) return;
+  btn.classList.remove('sent');
+  btn.disabled = false;
+  btn.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg> ASK TO PAUSE`;
+}
+
+// ── PAUSE REQUEST POPUP (host side) ───────────────────────────────
+let pendingPauseRequester = '';
+
+function showPauseRequestPopup(fromName){
+  pendingPauseRequester = fromName;
+  document.getElementById('pauseRequestMsg').textContent =
+    `${fromName} is asking you to pause the video for everyone.`;
+  const popup = document.getElementById('pauseRequestPopup');
+  popup.style.display = 'flex';
+  // Auto-dismiss after 20s
+  clearTimeout(popup._autoDismiss);
+  popup._autoDismiss = setTimeout(()=>dismissPauseRequest(), 20000);
+}
+
+function acceptPauseRequest(){
+  clearTimeout(document.getElementById('pauseRequestPopup')._autoDismiss);
+  document.getElementById('pauseRequestPopup').style.display = 'none';
+  if(!playerPlaying) return showToast('Already paused');
+  // Emit to server only — server broadcasts player:pause back to ALL clients
+  // (including host), so do NOT also call onSyncPause locally to avoid double-apply
+  const pt = Math.round(playerTime);
+  const requester = pendingPauseRequester;
+  pendingPauseRequester = '';
+  socket.emit('player:pause', { videoTime: pt });
+  // UI feedback shown immediately; actual sync fires when server echoes back
+  showToast(`⏸ Pausing for ${requester}...`);
+}
+
+function dismissPauseRequest(){
+  clearTimeout(document.getElementById('pauseRequestPopup')._autoDismiss);
+  document.getElementById('pauseRequestPopup').style.display = 'none';
+  if(pendingPauseRequester && socket){
+    socket.emit('pause_request_denied', { fromName: pendingPauseRequester });
+  }
+  pendingPauseRequester = '';
+}
+
+function seekPlayer(t){ playerTime=t; document.getElementById('vcSeek').value=t; updateTimeUI(); }
+
+function updateTimeUI(){
+  const m=Math.floor(playerTime/60),s=playerTime%60;
+  const ts = `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+  document.getElementById('vcTime').textContent=ts;
+  document.getElementById('vcTimeGuest').textContent=ts;
+  document.getElementById('vcSeek').value=playerTime;
+  // Update guest progress fill bar (max 7200s = 2hr film)
+  const pct = Math.min(100, (playerTime/7200)*100);
+  const fill = document.getElementById('vcProgressFill');
+  if(fill) fill.style.width = pct + '%';
+}
+
+function applySyncState(state){
+  if(!state) return;
+  playerTime    = state.currentTime || 0;
+  playerPlaying = state.playing || false;
+  document.getElementById('vcPlayBtn').textContent = playerPlaying ? '⏸' : '▶';
+  updateTimeUI();
+  if(playerTime > 0 || playerPlaying){
+    // Use scheduleSync so clock-offset correction is applied
+    scheduleSync({
+      serverNow: state.serverNow || Date.now(),
+      syncDelay: 800,
+      videoTime:  playerTime,
+      autoplay:   playerPlaying
+    });
+  } else {
+    stopTicker();
+    hideSyncOverlay();
+  }
+}
+
+// ── SERVER SWITCH IN-PARTY ─────────────────────────────────────────
+function openSrvModal(){
+  const grid=document.getElementById('inPartyServerGrid');
+  if(!pickedMovie){ grid.innerHTML='<div style="color:var(--text-dim);font-family:var(--font-ui);font-size:.8rem">No movie data available (you joined — ask host to switch)</div>'; }
+  else { buildServerGrid(grid); grid.querySelectorAll('.srv-btn').forEach((b,i)=>b.onclick=()=>switchServerInParty(i,b)); }
+  document.getElementById('srvModal').style.display='flex';
+}
+function closeSrvModal(){ document.getElementById('srvModal').style.display='none'; }
+function switchServerInParty(i,btn){
+  pickedServer=i;
+  const url=getEmbedUrl();
+  document.getElementById('partyIframe').src=url;
+  currentVideoSrc=url;
+  btn.closest('.server-grid').querySelectorAll('.srv-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  showToast('✓ Switched to '+SERVERS[i].name);
+  closeSrvModal();
+}
+
+// ── CHAT ──────────────────────────────────────────────────────────
+function sendChatMsg(){
+  const inp=document.getElementById('chatInput');
+  const t=inp.value.trim();
+  if(!t||!socket) return;
+  socket.emit('chat:message',{text:t});
+  inp.value='';
+}
+
+function appendChat(msg){
+  const box=document.getElementById('chatMessages');
+  const d=document.createElement('div');
+  d.className='chat-msg';
+  const ts=new Date(msg.ts);
+  const timeStr=`${String(ts.getHours()).padStart(2,'0')}:${String(ts.getMinutes()).padStart(2,'0')}`;
+  d.innerHTML=`<div class="cmsg-av" style="background:${msg.color||'#0d1328'};border:2px solid ${msg.color||'#00e5ff'}">${msg.emoji||'🎬'}</div>
+    <div class="cmsg-body">
+      <div class="cmsg-name" style="color:${msg.color||'#00e5ff'}">${xss(msg.name)}</div>
+      <div class="cmsg-text">${xss(msg.text)}</div>
+      <div class="cmsg-time">${timeStr}</div>
+    </div>`;
+  box.appendChild(d);
+  box.scrollTop=box.scrollHeight;
+}
+
+function appendSysMsg(text){
+  const box=document.getElementById('chatMessages');
+  const d=document.createElement('div');
+  d.className='sys-msg';
+  d.textContent=text;
+  box.appendChild(d);
+  box.scrollTop=box.scrollHeight;
+}
+
+// ── REACTIONS ─────────────────────────────────────────────────────
+function sendReaction(emoji){ if(!socket) return; socket.emit('reaction',{emoji}); spawnFloat(emoji); }
+
+function spawnFloat(emoji){
+  const cv=document.getElementById('rxCanvas');
+  const el=document.createElement('div');
+  el.className='float-rx';
+  el.textContent=emoji;
+  el.style.left=(15+Math.random()*70)+'%';
+  el.style.bottom='90px';
+  cv.appendChild(el);
+  setTimeout(()=>el.remove(),2800);
+}
+
+// ── MEMBERS ───────────────────────────────────────────────────────
+function renderMembers(members){
+  const c=document.getElementById('tabMembers');
+  c.innerHTML='';
+  members.forEach(m=>{
+    const d=document.createElement('div');
+    d.className='member-row';
+    d.innerHTML=`<div class="mbr-av" style="background:${m.color||'#0d1328'};border-color:${m.color||'#00e5ff'}">${m.emoji||'🎬'}</div>
+      <div class="mbr-name">${xss(m.name)}${m.id===socket?.id?' <span style="font-size:.65rem;color:var(--accent-cyan)">(you)</span>':''}</div>`;
+    c.appendChild(d);
+  });
+}
+
+// ── CHART ─────────────────────────────────────────────────────────
+function initChart(){
+  const cv=document.getElementById('rxChartCanvas');
+  const ctx=cv.getContext('2d');
+  chartObj={ctx,data:[...chartData],draw(){
+    const W=cv.offsetWidth,H=120;
+    cv.width=W; cv.height=H;
+    ctx.clearRect(0,0,W,H);
+    const max=Math.max(...this.data,1);
+    const pts=this.data.map((v,i)=>({x:(i/(this.data.length-1))*W, y:H-(v/max)*(H-14)-4}));
+    // grid
+    ctx.strokeStyle='rgba(255,255,255,.05)'; ctx.lineWidth=1;
+    [.25,.5,.75].forEach(r=>{ const y=H-r*(H-14)-4; ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke(); });
+    // fill
+    const g=ctx.createLinearGradient(0,0,0,H);
+    g.addColorStop(0,'rgba(0,229,255,.3)'); g.addColorStop(1,'rgba(0,229,255,0)');
+    ctx.beginPath(); ctx.moveTo(pts[0].x,H);
+    pts.forEach(p=>ctx.lineTo(p.x,p.y));
+    ctx.lineTo(pts[pts.length-1].x,H); ctx.closePath();
+    ctx.fillStyle=g; ctx.fill();
+    // line
+    ctx.beginPath(); pts.forEach((p,i)=>i===0?ctx.moveTo(p.x,p.y):ctx.lineTo(p.x,p.y));
+    ctx.strokeStyle='#00e5ff'; ctx.lineWidth=2; ctx.lineJoin='round'; ctx.stroke();
+    // dots
+    pts.forEach(p=>{ ctx.beginPath(); ctx.arc(p.x,p.y,2.5,0,Math.PI*2); ctx.fillStyle='#00e5ff'; ctx.fill(); });
+  }};
+  chartObj.draw();
+  setInterval(()=>{ if(!chartObj) return; chartObj.data.shift(); chartObj.data.push(0); chartObj.draw(); },2000);
+  window.addEventListener('resize',()=>chartObj&&chartObj.draw());
+}
+
+function bumpChart(){
+  if(!chartObj) return;
+  chartObj.data[chartObj.data.length-1]++;
+  chartObj.draw();
+}
+
+function updateEmojiRows(){
+  const max=Math.max(...Object.values(RXCOUNTS),1);
+  document.getElementById('emojiRows').innerHTML=Object.keys(RXCOUNTS).map(e=>`
+    <div class="emrow">
+      <div class="emrow-ico">${e}</div>
+      <div class="emrow-track"><div class="emrow-fill" style="width:${(RXCOUNTS[e]/max)*100}%"></div></div>
+      <div class="emrow-cnt">${RXCOUNTS[e]}</div>
+    </div>`).join('');
+}
+
+function updateHype(){
+  const r=(totalMsg+totalRx*2)/Math.max(memberCnt,1);
+  document.getElementById('stHype').textContent=Math.min(100,Math.round(r*5))+'%';
+}
+
+// ── TABS ──────────────────────────────────────────────────────────
+function switchTab(name,btn){
+  document.querySelectorAll('.side-tab').forEach(t=>t.classList.remove('active'));
+  btn.classList.add('active');
+  ['tabChat','tabMembers','tabChart'].forEach(id=>document.getElementById(id).classList.remove('active'));
+  document.getElementById('tab'+name.charAt(0).toUpperCase()+name.slice(1)).classList.add('active');
+  if(name==='chart'&&chartObj) chartObj.draw();
+}
+
+// ── SYNC OVERLAY ──────────────────────────────────────────────────
+function showSyncOverlay(){ document.getElementById('syncOverlay').classList.add('show'); }
+function hideSyncOverlay(){ document.getElementById('syncOverlay').classList.remove('show'); }
+
+// ── LEAVE ─────────────────────────────────────────────────────────
+function leaveParty(){
+  if(socket){socket.disconnect();socket=null;}
+  clearInterval(seekTimer);
+  document.getElementById('partyIframe').src='';
+  document.getElementById('chatMessages').innerHTML='';
+  document.getElementById('partyScreen').style.display='none';
+  document.getElementById('lobbyScreen').style.display='block';
+  currentRoomId=''; isHost=false; playerTime=0; playerPlaying=false;
+  stopTicker(); // clears both _tickInt and _heartbeatInt
+  // Reset create buttons
+  const cb=document.getElementById('createRoomBtn');
+  cb.disabled=false; cb.innerHTML='<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5,3 19,12 5,21"/></svg> LAUNCH WATCH PARTY';
+  const jb=document.getElementById('joinRoomBtn');
+  jb.disabled=false; jb.textContent='JOIN →';
+}
+
+// ── COPY INVITE ───────────────────────────────────────────────────
+function copyInviteLink(){
+  const url=`${location.origin}${location.pathname}?room=${currentRoomId}`;
+  navigator.clipboard.writeText(url).then(()=>{
+    const f=document.getElementById('copyFlash');
+    f.classList.add('show'); setTimeout(()=>f.classList.remove('show'),2000);
+  });
+}
+
+// ── UTILS ─────────────────────────────────────────────────────────
+function xss(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+let toastTimer=null;
+function showToast(msg,dur=2600){
+  const t=document.getElementById('wtToast');
+  t.textContent=msg; t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>t.classList.remove('show'),dur);
+}
+</script>
+</body>
+</html>

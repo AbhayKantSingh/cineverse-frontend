@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>CineVerse — Browse & Search</title>
+  <link rel="stylesheet" href="css/style.css"/>
+  <style>
+    .search-hero { padding:5.5rem 2.5rem 2rem; background:linear-gradient(180deg,rgba(0,229,255,.06) 0%,transparent 100%); }
+    .search-title { font-family:var(--font-display); font-size:clamp(1.6rem,4vw,2.4rem); font-weight:900; letter-spacing:3px; background:var(--grad-accent); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; margin-bottom:1.5rem; }
+    .search-big-bar { display:flex; gap:1rem; background:var(--bg-card); border:1px solid var(--border-glow); border-radius:var(--radius-lg); padding:1rem 1.5rem; align-items:center; box-shadow:var(--shadow-cyan); }
+    .search-big-bar input { flex:1; background:none; border:none; outline:none; color:var(--text-primary); font-family:var(--font-body); font-size:1.1rem; }
+    .search-big-bar input::placeholder { color:var(--text-dim); }
+    .search-big-btn { background:var(--grad-accent); border:none; border-radius:var(--radius-md); padding:.625rem 1.5rem; color:#fff; font-family:var(--font-ui); font-size:.9rem; font-weight:700; letter-spacing:1px; cursor:pointer; transition:var(--transition); white-space:nowrap; }
+    .search-big-btn:hover { transform:translateY(-1px); box-shadow:0 0 20px rgba(0,229,255,.4); }
+
+    .filters-bar { display:flex; gap:.875rem; flex-wrap:wrap; padding:1.5rem 2.5rem; border-bottom:1px solid rgba(255,255,255,.06); align-items:center; }
+    .filter-select { background:var(--bg-card); border:1px solid var(--border-glow); border-radius:var(--radius-md); padding:.5rem 1rem; color:var(--text-primary); font-family:var(--font-ui); font-size:.82rem; font-weight:600; cursor:pointer; outline:none; transition:var(--transition); }
+    .filter-select:focus { border-color:var(--accent-cyan); }
+
+    .results-area { padding:1.5rem 2.5rem 4rem; }
+    .results-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:1.25rem; }
+    .results-count { font-family:var(--font-ui); font-size:.82rem; color:var(--text-dim); letter-spacing:1px; }
+
+    .results-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(165px,1fr)); gap:1.25rem; }
+
+    .load-more-btn { display:block; margin:2rem auto; padding:.875rem 3rem; background:transparent; border:1.5px solid var(--accent-cyan); border-radius:50px; color:var(--accent-cyan); font-family:var(--font-ui); font-size:.9rem; font-weight:700; letter-spacing:2px; cursor:pointer; transition:var(--transition); }
+    .load-more-btn:hover { background:rgba(0,229,255,.1); transform:translateY(-2px); }
+    .load-more-btn:disabled { opacity:.5; cursor:not-allowed; transform:none; }
+
+    @media(max-width:768px) { .search-hero,.filters-bar,.results-area { padding-left:1rem; padding-right:1rem; } }
+  </style>
+</head>
+<body>
+<nav class="navbar">
+  <a href="index.html" class="nav-logo">CINEVERSE</a>
+  <ul class="nav-links">
+    <li><a href="index.html">HOME</a></li>
+    <li><a href="search.html" class="active">BROWSE</a></li>
+    <li><a href="leaderboard.html">LEADERBOARD</a></li>
+    <li><a href="forum.html">FORUM</a></li>
+    <li><a href="watch-together.html">WATCH TOGETHER</a></li>
+        <li id="navProfileLink" style="display:none"><a href="profile.html">PROFILE</a></li>
+  </ul>
+  <div class="nav-right">
+    <div id="navAuthArea"><button class="btn-login-nav" onclick="window.location.href='index.html'">LOGIN / JOIN</button></div>
+  </div>
+</nav>
+
+<div class="main-content">
+  <div class="search-hero">
+    <div class="search-title">🔍 BROWSE & DISCOVER</div>
+    <div class="search-big-bar">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--text-dim);flex-shrink:0"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+      <input type="text" id="bigSearchInput" placeholder="Search movies, TV shows, people..." autocomplete="off"/>
+      <button class="search-big-btn" onclick="doSearch()">SEARCH</button>
+    </div>
+  </div>
+
+  <!-- FILTERS -->
+  <div class="filters-bar">
+    <select class="filter-select" id="filterType" onchange="applyFilters()">
+      <option value="movie">🎬 Movies</option>
+      <option value="tv">📺 TV Shows</option>
+    </select>
+    <select class="filter-select" id="filterSort" onchange="applyFilters()">
+      <option value="popularity.desc">Most Popular</option>
+      <option value="vote_average.desc">Highest Rated</option>
+      <option value="release_date.desc">Newest First</option>
+      <option value="release_date.asc">Oldest First</option>
+      <option value="revenue.desc">Highest Grossing</option>
+    </select>
+    <select class="filter-select" id="filterGenre" onchange="applyFilters()">
+      <option value="">All Genres</option>
+    </select>
+    <select class="filter-select" id="filterLang" onchange="applyFilters()">
+      <option value="">All Languages</option>
+      <option value="en">English</option>
+      <option value="hi">Hindi</option>
+      <option value="ta">Tamil</option>
+      <option value="te">Telugu</option>
+      <option value="ml">Malayalam</option>
+      <option value="ko">Korean</option>
+      <option value="ja">Japanese</option>
+      <option value="es">Spanish</option>
+      <option value="fr">French</option>
+      <option value="de">German</option>
+    </select>
+    <select class="filter-select" id="filterYear" onchange="applyFilters()">
+      <option value="">All Years</option>
+    </select>
+    <button class="btn btn-ghost btn-sm" onclick="clearFilters()">CLEAR FILTERS</button>
+  </div>
+
+  <!-- RESULTS -->
+  <div class="results-area">
+    <div class="results-header">
+      <div class="section-title" id="resultsTitle">POPULAR MOVIES</div>
+      <div class="results-count" id="resultsCount"></div>
+    </div>
+    <div class="results-grid" id="resultsGrid">
+      <div class="loading-container" style="grid-column:1/-1"><div class="spinner"></div></div>
+    </div>
+    <button class="load-more-btn" id="loadMoreBtn" onclick="loadMore()" style="display:none">LOAD MORE</button>
+  </div>
+</div>
+
+<script src="js/api.js"></script>
+<script src="js/nav.js"></script>
+<script>
+let currentUser = null;
+let currentPage = 1;
+let currentQuery = '';
+let totalPages   = 1;
+let isLoading    = false;
+
+const urlParams = new URLSearchParams(location.search);
+
+document.addEventListener('DOMContentLoaded', async () => {
+  currentUser = await initNav();
+  await populateGenres();
+  populateYears();
+
+  // Handle URL params
+  const q     = urlParams.get('q');
+  const sort  = urlParams.get('sort');
+  const type  = urlParams.get('type');
+  const genre = urlParams.get('genre');
+  const filter= urlParams.get('filter');
+
+  if (type)  document.getElementById('filterType').value = type;
+  if (sort === 'top_rated')  document.getElementById('filterSort').value = 'vote_average.desc';
+  if (sort === 'trending')   {} // handled below
+  if (genre) document.getElementById('filterGenre').value = genre;
+  if (q)     { document.getElementById('bigSearchInput').value = q; currentQuery = q; }
+
+  if (filter === 'now_playing') { await loadNowPlaying(); return; }
+  if (sort   === 'trending')    { await loadTrending(); return; }
+  if (q)                        { await doSearch(); return; }
+
+  applyFilters();
+
+  // Enter key on search
+  document.getElementById('bigSearchInput').addEventListener('keydown', e => { if(e.key==='Enter') doSearch(); });
+});
+
+async function populateGenres() {
+  const data = await CV.tmdbGenres();
+  const type = document.getElementById('filterType').value;
+  const genres = type === 'tv' ? data?.tvGenres : data?.movieGenres;
+  const sel = document.getElementById('filterGenre');
+  sel.innerHTML = '<option value="">All Genres</option>';
+  (genres||[]).forEach(g => { const opt = document.createElement('option'); opt.value = g.id; opt.textContent = g.name; sel.appendChild(opt); });
+}
+
+function populateYears() {
+  const sel = document.getElementById('filterYear');
+  const cur = new Date().getFullYear();
+  for (let y = cur; y >= 1900; y--) {
+    const opt = document.createElement('option'); opt.value = y; opt.textContent = y; sel.appendChild(opt);
+  }
+}
+
+async function doSearch() {
+  const q = document.getElementById('bigSearchInput').value.trim();
+  if (!q) { applyFilters(); return; }
+  currentQuery = q;
+  currentPage  = 1;
+  document.getElementById('resultsTitle').textContent = `SEARCH RESULTS FOR "${q.toUpperCase()}"`;
+  document.getElementById('resultsCount').textContent = '';
+  setLoading(true);
+  try {
+    const data = await CV.tmdbSearch(q, 1);
+    const results = data?.results || [];
+    totalPages = Math.min(data?.total_pages || 1, 10);
+    document.getElementById('resultsCount').textContent = `${data?.total || results.length} results`;
+    renderResults(results, false);
+    document.getElementById('loadMoreBtn').style.display = currentPage < totalPages ? 'block' : 'none';
+  } catch (e) { CV.showToast(e.message, 'error'); }
+  finally { setLoading(false); }
+}
+
+async function applyFilters() {
+  currentQuery = '';
+  currentPage  = 1;
+  const type = document.getElementById('filterType').value;
+  const sort = document.getElementById('filterSort').value;
+  const genre= document.getElementById('filterGenre').value;
+  const lang = document.getElementById('filterLang').value;
+  const year = document.getElementById('filterYear').value;
+
+  // Repopulate genres if type changed
+  await populateGenres();
+
+  const sortLabels = { 'popularity.desc':'Most Popular','vote_average.desc':'Highest Rated','release_date.desc':'Newest','release_date.asc':'Oldest','revenue.desc':'Highest Grossing' };
+  const typeLabel  = type === 'tv' ? 'TV SHOWS' : 'MOVIES';
+  document.getElementById('resultsTitle').textContent = `${sortLabels[sort]||'BROWSE'} ${typeLabel}`;
+  document.getElementById('bigSearchInput').value = '';
+
+  setLoading(true);
+  try {
+    const extra = year ? (type==='tv'?`&first_air_date_year=${year}`:`&year=${year}`) : '';
+    const data  = await CV.tmdbDiscover(genre||null, lang||null, sort, 1, extra + (type==='tv'?'&type=tv':''));
+    totalPages  = Math.min(data?.total_pages || 1, 20);
+    const count = data?.total_results;
+    document.getElementById('resultsCount').textContent = count ? `${count.toLocaleString()} titles` : '';
+    renderResults(data?.results || [], false, type);
+    document.getElementById('loadMoreBtn').style.display = currentPage < totalPages ? 'block' : 'none';
+  } catch (e) { CV.showToast(e.message,'error'); }
+  finally { setLoading(false); }
+}
+
+async function loadMore() {
+  if (isLoading || currentPage >= totalPages) return;
+  currentPage++;
+  setLoading(true);
+  document.getElementById('loadMoreBtn').disabled = true;
+  try {
+    let data;
+    if (currentQuery) {
+      data = await CV.tmdbSearch(currentQuery, currentPage);
+      renderResults(data?.results || [], true);
+    } else {
+      const type  = document.getElementById('filterType').value;
+      const sort  = document.getElementById('filterSort').value;
+      const genre = document.getElementById('filterGenre').value;
+      const lang  = document.getElementById('filterLang').value;
+      const year  = document.getElementById('filterYear').value;
+      const extra = year ? (type==='tv'?`&first_air_date_year=${year}`:`&year=${year}`) : '';
+      data = await CV.tmdbDiscover(genre||null, lang||null, sort, currentPage, extra + (type==='tv'?'&type=tv':''));
+      renderResults(data?.results || [], true, type);
+    }
+    document.getElementById('loadMoreBtn').style.display = currentPage < totalPages ? 'block' : 'none';
+  } catch (e) { CV.showToast(e.message,'error'); currentPage--; }
+  finally { setLoading(false); document.getElementById('loadMoreBtn').disabled = false; }
+}
+
+async function loadNowPlaying() {
+  document.getElementById('resultsTitle').textContent = 'NOW IN CINEMAS';
+  setLoading(true);
+  try { const d = await CV.tmdbNowPlaying(); renderResults(d?.results||[], false,'movie'); }
+  finally { setLoading(false); }
+}
+
+async function loadTrending() {
+  document.getElementById('resultsTitle').textContent = 'TRENDING THIS WEEK';
+  setLoading(true);
+  try { const d = await CV.tmdbTrending('movie','week'); renderResults(d?.results||[], false,'movie'); }
+  finally { setLoading(false); }
+}
+
+function renderResults(movies, append = false, type = 'movie') {
+  const grid = document.getElementById('resultsGrid');
+  if (!append) grid.innerHTML = '';
+  if (!movies.length && !append) {
+    grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:4rem;font-family:var(--font-ui);color:var(--text-dim)"><div style="font-size:3rem;margin-bottom:1rem">🔍</div><p>No results found. Try different filters.</p></div>';
+    return;
+  }
+  const li     = CV.isLoggedIn();
+  const favIds = new Set((currentUser?.favorites||[]).map(f=>f.movieId));
+  const wlIds  = new Set((currentUser?.watchlist||[]).map(w=>w.movieId));
+
+  movies.forEach(m => {
+    const title = m.title||m.name||'', mid = m.id, mtype = m.media_type||type;
+    const card  = document.createElement('div');
+    card.className = 'movie-card';
+    card.onclick   = () => window.location.href = `movie.html?id=${mid}&type=${mtype}`;
+    card.innerHTML = `
+      <img src="${CV.posterUrl(m.poster_path,'w342')}" alt="${esc(title)}" loading="lazy" onerror="this.src='${CV.PLACEHOLDER}'"/>
+      ${mtype==='tv'?`<div style="position:absolute;top:8px;left:8px;background:rgba(123,47,255,.9);color:#fff;font-family:var(--font-ui);font-size:.62rem;font-weight:700;letter-spacing:1px;padding:2px 8px;border-radius:10px">TV</div>`:''}
+      ${li?`<div class="card-action-btns">
+        <div class="card-btn fav ${favIds.has(mid)?'active':''}" onclick="event.stopPropagation();toggleFav(${mid},'${esc(title)}','${m.poster_path||''}',this)" title="Favourite">${favIds.has(mid)?'❤️':'🤍'}</div>
+        <div class="card-btn wl ${wlIds.has(mid)?'active':''}" onclick="event.stopPropagation();toggleWL(${mid},'${esc(title)}','${m.poster_path||''}',this)" title="Watchlist">${wlIds.has(mid)?'✓':'+'}</div>
+      </div>`:''}
+      <div class="movie-card-overlay">
+        <div class="movie-card-title">${title}</div>
+        <div class="movie-card-meta"><span class="rating-badge">⭐ ${m.vote_average?.toFixed(1)||'N/A'}</span><span>${CV.getYear(m.release_date||m.first_air_date)}</span></div>
+        <div style="margin-top:.4rem"><button class="btn btn-primary btn-sm" onclick="event.stopPropagation();window.location.href='movie.html?id=${mid}&type=${mtype}&play=1'" style="background:linear-gradient(90deg,#00e5ff,#7b2fff);border:none;font-size:.65rem;padding:3px 10px;letter-spacing:1px">▶ WATCH</button></div>
+      </div>`;
+    grid.appendChild(card);
+  });
+}
+
+async function toggleWL(id,title,p,btn) {
+  if(!CV.isLoggedIn()){window.location.href='index.html';return;}
+  try{const d=await CV.toggleWatchlist(id,title,p);const a=d.action==='added';btn.classList.toggle('active',a);btn.textContent=a?'✓':'+';CV.showToast(a?'Added to Watchlist ✓':'Removed from Watchlist','success');currentUser=await CV.getCurrentUser(true);}
+  catch(e){CV.showToast(e.message,'error');}
+}
+async function toggleFav(id,title,p,btn) {
+  if(!CV.isLoggedIn()){window.location.href='index.html';return;}
+  try{const d=await CV.toggleFavorite(id,title,p);const f=d.action==='favorited';btn.classList.toggle('active',f);btn.textContent=f?'❤️':'🤍';CV.showToast(f?'❤️ Added to Favourites +10 XP':'Removed from Favourites',f?'xp':'info');currentUser=await CV.getCurrentUser(true);}
+  catch(e){CV.showToast(e.message,'error');}
+}
+
+function clearFilters() {
+  document.getElementById('filterSort').value  = 'popularity.desc';
+  document.getElementById('filterGenre').value = '';
+  document.getElementById('filterLang').value  = '';
+  document.getElementById('filterYear').value  = '';
+  document.getElementById('bigSearchInput').value = '';
+  applyFilters();
+}
+
+function setLoading(on) {
+  isLoading = on;
+  if (on && currentPage===1) { document.getElementById('resultsGrid').innerHTML='<div class="loading-container" style="grid-column:1/-1"><div class="spinner"></div></div>'; }
+}
+
+function esc(s) { return (s||'').replace(/'/g,"\\'").replace(/"/g,'&quot;'); }
+</script>
+</body>
+</html>

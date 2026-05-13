@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>CineVerse — Leaderboard</title>
+  <link rel="stylesheet" href="css/style.css"/>
+  <style>
+    .lb-hero { padding:6rem 2.5rem 2rem; text-align:center; }
+    .lb-title { font-family:var(--font-display); font-size:clamp(2rem,5vw,3rem); font-weight:900; letter-spacing:4px; background:var(--grad-fire); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; margin-bottom:.4rem; }
+    .lb-sub   { font-family:var(--font-ui); color:var(--text-dim); letter-spacing:3px; font-size:.8rem; }
+
+    .prize-strip { display:flex; justify-content:center; gap:1.5rem; flex-wrap:wrap; padding:1.5rem 2.5rem; }
+    .prize-card  { display:flex; flex-direction:column; align-items:center; gap:.5rem; padding:1.25rem 2rem; border-radius:var(--radius-lg); font-family:var(--font-ui); min-width:140px; text-align:center; }
+    .prize-card.gold   { background:rgba(255,215,0,.1);  border:1px solid var(--accent-gold); }
+    .prize-card.silver { background:rgba(192,192,192,.1); border:1px solid #c0c0c0; }
+    .prize-card.bronze { background:rgba(205,127,50,.1);  border:1px solid #cd7f32; }
+    .prize-rank  { font-family:var(--font-display); font-size:1rem; font-weight:700; }
+    .prize-card.gold   .prize-rank,.prize-card.gold   .prize-amount { color:var(--accent-gold); }
+    .prize-card.silver .prize-rank,.prize-card.silver .prize-amount { color:#c0c0c0; }
+    .prize-card.bronze .prize-rank,.prize-card.bronze .prize-amount { color:#cd7f32; }
+    .prize-amount { font-size:1.6rem; font-weight:900; }
+    .prize-label  { font-size:.72rem; color:var(--text-dim); letter-spacing:1px; }
+
+    .my-rank-banner { max-width:860px; margin:0 auto 1.5rem; padding:1.125rem 1.75rem; background:linear-gradient(135deg,rgba(0,229,255,.08),rgba(123,47,255,.08)); border:1px solid var(--border-glow); border-radius:var(--radius-lg); display:flex; align-items:center; justify-content:space-between; gap:1rem; }
+
+    .podium { display:flex; justify-content:center; align-items:flex-end; gap:1.25rem; padding:1.5rem 2.5rem; max-width:660px; margin:0 auto; }
+    .podium-item { display:flex; flex-direction:column; align-items:center; gap:.625rem; }
+    .podium-avatar-wrap { position:relative; }
+    .podium-crown { position:absolute; top:-20px; font-size:1.3rem; }
+    .podium-name  { font-family:var(--font-ui); font-size:.75rem; font-weight:700; color:var(--text-primary); max-width:85px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .podium-xp    { font-family:var(--font-ui); font-size:.68rem; color:var(--text-dim); }
+    .podium-stand { width:90px; display:flex; flex-direction:column; align-items:center; border-radius:var(--radius-sm) var(--radius-sm) 0 0; padding:.875rem .5rem; }
+
+    .lb-table { max-width:860px; margin:0 auto; padding:0 2.5rem 4rem; }
+    .lb-row   { display:flex; align-items:center; gap:.875rem; padding:.875rem 1.125rem; border-radius:var(--radius-md); margin-bottom:.625rem; border:1px solid rgba(255,255,255,.05); background:var(--bg-card); transition:var(--transition); }
+    .lb-row:hover  { border-color:var(--border-glow); transform:translateX(4px); }
+    .lb-row.me     { border-color:var(--accent-cyan); background:rgba(0,229,255,.04); }
+    .lb-rank-num   { font-family:var(--font-display); font-size:1rem; font-weight:700; color:var(--text-dim); width:28px; text-align:center; flex-shrink:0; }
+    .lb-rank-num.top3 { color:var(--accent-gold); }
+    .lb-avatar { width:44px; height:44px; border-radius:50%; font-size:1.25rem; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+    .lb-user-info { flex:1; }
+    .lb-username  { font-family:var(--font-ui); font-weight:700; font-size:.95rem; color:var(--text-primary); }
+    .lb-meta      { font-size:.72rem; color:var(--text-dim); margin-top:2px; }
+    .lb-stats     { display:flex; gap:1.25rem; text-align:center; }
+    .lb-stat-val  { font-family:var(--font-display); font-size:.95rem; font-weight:700; color:var(--accent-cyan); }
+    .lb-stat-lbl  { font-family:var(--font-ui); font-size:.62rem; color:var(--text-dim); letter-spacing:1px; }
+    .prize-tag    { padding:3px 10px; border-radius:20px; font-family:var(--font-display); font-size:.75rem; font-weight:700; flex-shrink:0; }
+    .prize-tag.g  { background:rgba(255,215,0,.1);  border:1px solid var(--accent-gold); color:var(--accent-gold); }
+    .prize-tag.s  { background:rgba(192,192,192,.1); border:1px solid #c0c0c0; color:#c0c0c0; }
+    .prize-tag.b  { background:rgba(205,127,50,.1);  border:1px solid #cd7f32; color:#cd7f32; }
+    .prize-tag.x  { background:rgba(0,229,255,.08);  border:1px solid rgba(0,229,255,.3); color:var(--accent-cyan); }
+  </style>
+</head>
+<body>
+<nav class="navbar">
+  <a href="index.html" class="nav-logo">CINEVERSE</a>
+  <ul class="nav-links">
+    <li><a href="index.html">HOME</a></li>
+    <li><a href="leaderboard.html" class="active">LEADERBOARD</a></li>
+    <li><a href="forum.html">FORUM</a></li>
+    <li><a href="watch-together.html">WATCH TOGETHER</a></li>
+        <li id="navProfileLink" style="display:none"><a href="profile.html">PROFILE</a></li>
+  </ul>
+  <div class="nav-right">
+    <div id="navAuthArea"><button class="btn-login-nav" onclick="window.location.href='index.html'">LOGIN / JOIN</button></div>
+  </div>
+</nav>
+
+<div class="main-content">
+  <div class="lb-hero">
+    <div class="lb-title">🏆 MONTHLY LEGENDS</div>
+    <div class="lb-sub">GLOBAL LEADERBOARD · RESETS MONTHLY · TOP 3 WIN PRIZES</div>
+  </div>
+
+  <div class="prize-strip">
+    <div class="prize-card gold">  <div class="prize-rank">🥇 RANK #1</div><div class="prize-amount">₹500</div><div class="prize-label">VIA UPI · END OF MONTH</div></div>
+    <div class="prize-card silver"><div class="prize-rank">🥈 RANK #2</div><div class="prize-amount">₹300</div><div class="prize-label">VIA UPI · END OF MONTH</div></div>
+    <div class="prize-card bronze"><div class="prize-rank">🥉 RANK #3</div><div class="prize-amount">₹100</div><div class="prize-label">VIA UPI · END OF MONTH</div></div>
+  </div>
+
+  <!-- XP How-to earn -->
+  <div style="max-width:860px;margin:0 auto 1.5rem;padding:0 2.5rem">
+    <div class="glass-card" style="padding:1rem 1.5rem;display:flex;gap:2rem;flex-wrap:wrap;justify-content:center">
+      <div style="text-align:center;font-family:var(--font-ui)"><div style="font-size:.75rem;font-weight:700;color:var(--text-primary)">+ WATCHLIST</div><div style="font-size:1rem;font-weight:900;color:var(--accent-gold)">5 XP</div></div>
+      <div style="text-align:center;font-family:var(--font-ui)"><div style="font-size:.75rem;font-weight:700;color:var(--text-primary)">✓ WATCHED</div><div style="font-size:1rem;font-weight:900;color:var(--accent-gold)">15 XP</div></div>
+      <div style="text-align:center;font-family:var(--font-ui)"><div style="font-size:.75rem;font-weight:700;color:var(--text-primary)">❤️ FAVOURITE</div><div style="font-size:1rem;font-weight:900;color:var(--accent-gold)">10 XP</div></div>
+      <div style="text-align:center;font-family:var(--font-ui)"><div style="font-size:.75rem;font-weight:700;color:var(--text-primary)">✍️ REVIEW</div><div style="font-size:1rem;font-weight:900;color:var(--accent-gold)">25 XP</div></div>
+      <div style="text-align:center;font-family:var(--font-ui)"><div style="font-size:.75rem;font-weight:700;color:var(--text-primary)">💬 FORUM POST</div><div style="font-size:1rem;font-weight:900;color:var(--accent-gold)">10 XP</div></div>
+      <div style="text-align:center;font-family:var(--font-ui)"><div style="font-size:.75rem;font-weight:700;color:var(--text-primary)">❤️ LIKE RECEIVED</div><div style="font-size:1rem;font-weight:900;color:var(--accent-gold)">2 XP</div></div>
+    </div>
+  </div>
+
+  <!-- My rank -->
+  <div style="padding:0 2.5rem">
+    <div class="my-rank-banner" id="myRankBanner" style="display:none">
+      <div style="font-family:var(--font-ui)">
+        <h3 id="myRankTitle" style="font-size:1rem;font-weight:700;color:var(--text-primary);margin-bottom:.2rem">Your Rank: #—</h3>
+        <p id="myRankSub" style="font-size:.82rem;color:var(--text-secondary)">Keep earning XP to win prizes!</p>
+      </div>
+      <div class="xp-badge" id="myRankXP">⚡ 0 XP</div>
+    </div>
+  </div>
+
+  <!-- TABS -->
+  <div style="max-width:860px;margin:0 auto;padding:0 2.5rem">
+    <div class="tabs" style="margin-top:1rem">
+      <button class="tab-btn active" onclick="showLbTab('current')">THIS MONTH</button>
+      <button class="tab-btn" onclick="showLbTab('history');loadHistory()">PAST WINNERS</button>
+      <button class="tab-btn" onclick="showLbTab('feed');loadFeed()">RECENT REVIEWS</button>
+    </div>
+
+    <div id="lbtab-current">
+      <div id="podiumSection"></div>
+      <div class="cyber-line"></div>
+      <div class="section-header">
+        <div class="section-title">FULL RANKINGS</div>
+        <span id="monthLabel" style="font-family:var(--font-ui);font-size:.72rem;color:var(--text-dim)"></span>
+      </div>
+      <div id="fullTable"><div class="loading-container"><div class="spinner"></div></div></div>
+    </div>
+
+    <div id="lbtab-history" style="display:none"><div id="historyContent"><div class="loading-container"><div class="spinner"></div></div></div></div>
+    <div id="lbtab-feed"    style="display:none"><div id="feedContent"><div class="loading-container"><div class="spinner"></div></div></div></div>
+  </div>
+
+  <div style="height:4rem"></div>
+</div>
+
+<script src="js/api.js"></script>
+<script src="js/nav.js"></script>
+<script>
+let currentUser=null;
+
+document.addEventListener('DOMContentLoaded', async()=>{
+  currentUser = await initNav();
+  if (CV.isLoggedIn()) loadMyRank();
+  loadCurrentLB();
+});
+
+async function loadCurrentLB(){
+  try{
+    const d=await CV.getLeaderboard(); const lb=d?.leaderboard||[];
+    document.getElementById('monthLabel').textContent=d?.monthLabel?.toUpperCase()||'';
+    renderPodium(lb); renderTable(lb);
+  }catch{ document.getElementById('fullTable').innerHTML=renderEmpty(); document.getElementById('podiumSection').innerHTML=''; }
+}
+
+async function loadMyRank(){
+  try{
+    const d=await CV.getMyRank(); const b=document.getElementById('myRankBanner');
+    if(d?.rank){ b.style.display='flex'; document.getElementById('myRankTitle').textContent=`Your Rank: #${d.rank} this month`; document.getElementById('myRankXP').textContent=`⚡ ${d.xp} XP`; document.getElementById('myRankSub').textContent=`Monthly XP: ${d.xp}${d.prize>0?` 🎉 On track to win ₹${d.prize}!`:' Keep earning XP!'}`; }
+  }catch{}
+}
+
+function renderPodium(lb){
+  const top3=lb.slice(0,3);
+  if(!top3.length){document.getElementById('podiumSection').innerHTML='';return;}
+  const S=[
+    {sz:'68px',fs:'2rem',bc:'var(--accent-gold)',sh:'rgba(255,215,0,.4)',h:'95px',bg:'rgba(255,215,0,.08)',rc:'var(--accent-gold)'},
+    {sz:'58px',fs:'1.7rem',bc:'#c0c0c0',sh:'rgba(192,192,192,.3)',h:'72px',bg:'rgba(192,192,192,.05)',rc:'#c0c0c0'},
+    {sz:'52px',fs:'1.4rem',bc:'#cd7f32',sh:'rgba(205,127,50,.3)',h:'52px',bg:'rgba(205,127,50,.05)',rc:'#cd7f32'},
+  ];
+  const order=top3.length>=2?[1,0,2].filter(i=>top3[i]):[0];
+  document.getElementById('podiumSection').innerHTML=`<div class="podium">`+order.map(i=>{
+    const e=top3[i],s=S[i];
+    return `<div class="podium-item">
+      <div class="podium-name">${e.userName}</div>
+      <div class="podium-xp">${e.xp} XP</div>
+      <div class="podium-avatar-wrap">
+        ${i===0?'<div class="podium-crown">👑</div>':''}
+        <div style="width:${s.sz};height:${s.sz};border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:${s.fs};border:3px solid ${s.bc};box-shadow:0 0 18px ${s.sh};background:${CV.AVATAR_COLORS[e.avatarColor||0]}">${e.avatarEmoji||'🎬'}</div>
+      </div>
+      <div class="podium-stand" style="height:${s.h};background:${s.bg};border-top:2px solid ${s.bc}">
+        <div style="font-family:var(--font-display);font-size:1.3rem;font-weight:900;color:${s.rc}">#${i+1}</div>
+      </div>
+    </div>`;
+  }).join('')+`</div>`;
+}
+
+function renderTable(lb){
+  if(!lb.length){document.getElementById('fullTable').innerHTML=renderEmpty();return;}
+  const PC=['g','s','b'], PV=[500,300,100];
+  document.getElementById('fullTable').innerHTML=lb.map((e,i)=>{
+    const rank=i+1, isMe=e.username===currentUser?.username, prize=rank<=3?PV[rank-1]:0;
+    return `<div class="lb-row ${isMe?'me':''}">
+      <div class="lb-rank-num ${rank<=3?'top3':''}">#${rank}</div>
+      <div class="lb-avatar" style="background:${CV.AVATAR_COLORS[e.avatarColor||0]}">${e.avatarEmoji||'🎬'}</div>
+      <div class="lb-user-info">
+        <div class="lb-username">${e.userName} ${isMe?'<span style="color:var(--accent-cyan);font-size:.7rem">(YOU)</span>':''}</div>
+        <div class="lb-meta">@${e.username}</div>
+      </div>
+      <div class="lb-stats">
+        <div><div class="lb-stat-val">${e.reviewCount||0}</div><div class="lb-stat-lbl">REVIEWS</div></div>
+        <div><div class="lb-stat-val">${e.watchedCount||0}</div><div class="lb-stat-lbl">WATCHED</div></div>
+      </div>
+      <div class="prize-tag ${rank<=3?PC[rank-1]:'x'}">${prize>0?`₹${prize}`:`⚡ ${e.xp} XP`}</div>
+    </div>`;
+  }).join('');
+}
+
+function renderEmpty(){return`<div style="text-align:center;padding:4rem;font-family:var(--font-ui)"><div style="font-size:3rem;margin-bottom:1rem">🏆</div><p style="font-size:1rem;font-weight:700;color:var(--text-primary);margin-bottom:.5rem">NO ENTRIES YET THIS MONTH</p><p style="color:var(--text-dim);margin-bottom:1.5rem">Be the first! Watch movies & post reviews to earn XP.</p><a href="index.html" class="btn btn-primary">START EARNING XP</a></div>`;}
+
+function showLbTab(name){['current','history','feed'].forEach(t=>{document.getElementById('lbtab-'+t).style.display=t===name?'block':'none';});document.querySelectorAll('.tab-btn').forEach((b,i)=>b.classList.toggle('active',i===['current','history','feed'].indexOf(name)));}
+
+async function loadHistory(){
+  const el=document.getElementById('historyContent');
+  try{
+    const d=await CV.getLBHistory(); const h=d?.history||[];
+    if(!h.length){el.innerHTML='<p style="color:var(--text-dim);font-family:var(--font-ui);text-align:center;padding:3rem">No history yet.</p>';return;}
+    el.innerHTML=h.map(m=>`<div style="margin-bottom:2rem">
+      <div style="font-family:var(--font-display);font-size:.85rem;letter-spacing:2px;color:var(--accent-gold);margin-bottom:1rem">🏆 ${m.monthLabel.toUpperCase()}</div>
+      <div style="display:flex;gap:1rem;flex-wrap:wrap">
+        ${m.winners.map(w=>`<div style="display:flex;align-items:center;gap:.75rem;padding:.75rem 1.125rem;background:var(--bg-card);border:1px solid rgba(255,255,255,.07);border-radius:var(--radius-md)">
+          <div style="width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1rem;background:${CV.AVATAR_COLORS[w.avatarColor||0]}">${w.avatarEmoji||'🎬'}</div>
+          <div><div style="font-size:.72rem;color:var(--text-dim)">${['🥇','🥈','🥉'][w.rank-1]} #${w.rank}</div><div style="font-family:var(--font-ui);font-weight:700;font-size:.875rem;color:var(--text-primary)">${w.userName}</div><div style="font-family:var(--font-ui);font-size:.75rem;color:var(--accent-gold)">₹${w.prize} · ${w.xp} XP</div></div>
+        </div>`).join('')}
+      </div>
+    </div>`).join('');
+  }catch{el.innerHTML='<p style="color:var(--text-dim);padding:2rem;font-family:var(--font-ui)">Could not load history.</p>';}
+}
+
+async function loadFeed(){
+  const el=document.getElementById('feedContent');
+  try{
+    const d=await CV.getRecentReviews(); const r=d?.reviews||[];
+    if(!r.length){el.innerHTML='<p style="color:var(--text-dim);font-family:var(--font-ui);text-align:center;padding:3rem">No reviews yet.</p>';return;}
+    el.innerHTML=r.map(rv=>`<div class="lb-row" style="cursor:pointer" onclick="window.location.href='movie.html?id=${rv.movieId}'">
+      <img src="${rv.posterPath?'https://image.tmdb.org/t/p/w92'+rv.posterPath:CV.PLACEHOLDER}" style="width:38px;height:56px;border-radius:6px;object-fit:cover;flex-shrink:0" onerror="this.src='${CV.PLACEHOLDER}'"/>
+      <div style="flex:1;overflow:hidden"><div style="font-family:var(--font-ui);font-weight:700;color:var(--text-primary);font-size:.9rem">${rv.movieTitle}</div><div style="font-size:.72rem;color:var(--text-dim)">by @${rv.username} · ${CV.formatDate(rv.createdAt)}</div>${rv.text?`<div style="font-size:.82rem;color:var(--text-secondary);margin-top:3px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical">${rv.text}</div>`:''}</div>
+      <div class="rating-badge" style="flex-shrink:0">⭐ ${rv.rating}/5</div>
+    </div>`).join('');
+  }catch{el.innerHTML='<p style="color:var(--text-dim);padding:2rem;font-family:var(--font-ui)">Could not load reviews.</p>';}
+}
+</script>
+</body>
+</html>

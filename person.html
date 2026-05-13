@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>CineVerse — Person</title>
+  <link rel="stylesheet" href="css/style.css"/>
+  <style>
+    .person-hero { padding:5.5rem 2.5rem 2.5rem; display:flex; gap:3rem; align-items:flex-start; max-width:1100px; margin:0 auto; }
+    .person-photo { width:220px; min-width:220px; border-radius:var(--radius-lg); border:2px solid var(--border-glow); box-shadow:var(--shadow-cyan),0 20px 60px rgba(0,0,0,.5); object-fit:cover; aspect-ratio:2/3; }
+    .person-info h1 { font-family:var(--font-display); font-size:clamp(1.6rem,4vw,2.5rem); font-weight:900; margin-bottom:.75rem; }
+    .person-bio { font-size:.9rem; line-height:1.75; color:var(--text-secondary); max-width:700px; }
+    .person-bio.collapsed { display:-webkit-box; -webkit-line-clamp:4; -webkit-box-orient:vertical; overflow:hidden; }
+    .read-more { background:none; border:none; color:var(--accent-cyan); font-family:var(--font-ui); font-size:.82rem; cursor:pointer; margin-top:.5rem; }
+    .info-pill { display:inline-flex; align-items:center; gap:.5rem; padding:4px 14px; border-radius:20px; background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.08); font-family:var(--font-ui); font-size:.78rem; color:var(--text-secondary); }
+    @media(max-width:768px){ .person-hero{flex-direction:column;align-items:center;text-align:center;padding:5.5rem 1rem 2rem;} .person-photo{width:160px;min-width:160px;} }
+  </style>
+</head>
+<body>
+<nav class="navbar">
+  <a href="index.html" class="nav-logo">CINEVERSE</a>
+  <ul class="nav-links">
+    <li><a href="index.html">HOME</a></li>
+    <li><a href="search.html">BROWSE</a></li>
+    <li><a href="forum.html">FORUM</a></li>
+  </ul>
+  <div class="nav-right">
+    <div id="navAuthArea"><button class="btn-login-nav" onclick="window.location.href='index.html'">LOGIN / JOIN</button></div>
+  </div>
+</nav>
+
+<div class="main-content" id="mainContent">
+  <div class="loading-container" style="padding-top:38vh"><div class="spinner"></div><span style="font-family:var(--font-ui);letter-spacing:3px;font-size:.8rem">LOADING...</span></div>
+</div>
+
+<script src="js/api.js"></script>
+<script src="js/nav.js"></script>
+<script>
+const params   = new URLSearchParams(location.search);
+const personId = parseInt(params.get('id'));
+if (!personId) window.location.href = 'index.html';
+
+document.addEventListener('DOMContentLoaded', async () => {
+  currentUser = await initNav();
+
+  const d = await CV.tmdbPerson(personId);
+  if (!d?.person) {
+    document.getElementById('mainContent').innerHTML = '<div class="loading-container" style="padding-top:30vh"><p style="color:var(--text-dim)">Person not found.</p></div>';
+    return;
+  }
+  const p = d.person;
+  document.title = `CineVerse — ${p.name}`;
+  renderPerson(p);
+});
+
+function renderPerson(p) {
+  const credits  = [...(p.movie_credits?.cast||[]), ...(p.tv_credits?.cast||[])];
+  const crewCredits = [...(p.movie_credits?.crew||[]), ...(p.tv_credits?.crew||[])];
+  const allWork  = [...credits].sort((a,b) => (b.popularity||0) - (a.popularity||0));
+  const knownFor = allWork.slice(0,12);
+  const age      = p.birthday ? Math.floor((new Date()-new Date(p.birthday))/(365.25*24*60*60*1000)) : null;
+  const ext      = p.external_ids || {};
+
+  document.getElementById('mainContent').innerHTML = `
+    <div class="person-hero">
+      <img class="person-photo" src="${p.profile_path ? CV.profileUrl(p.profile_path,'w342') : CV.PLACEHOLDER}" alt="${p.name}" onerror="this.src='${CV.PLACEHOLDER}'"/>
+      <div class="person-info">
+        <h1>${p.name}</h1>
+        <div style="display:flex;gap:.75rem;flex-wrap:wrap;margin-bottom:1.25rem">
+          ${p.known_for_department?`<div class="info-pill">🎭 ${p.known_for_department}</div>`:''}
+          ${p.birthday?`<div class="info-pill">🎂 Born ${CV.formatDate(p.birthday)}${age?` (${age} yrs)`:''}</div>`:''}
+          ${p.place_of_birth?`<div class="info-pill">📍 ${p.place_of_birth}</div>`:''}
+          ${p.deathday?`<div class="info-pill">✝️ ${CV.formatDate(p.deathday)}</div>`:''}
+        </div>
+        ${p.biography?`
+          <p class="person-bio collapsed" id="personBio">${p.biography}</p>
+          <button class="read-more" id="readMoreBtn" onclick="toggleBio()">Read more ↓</button>
+        `:''}
+        <div style="display:flex;gap:.75rem;flex-wrap:wrap;margin-top:1.25rem">
+          ${ext.imdb_id?`<a href="https://www.imdb.com/name/${ext.imdb_id}" target="_blank" rel="noopener" class="btn btn-ghost btn-sm">🎬 IMDb</a>`:''}
+          ${ext.instagram_id?`<a href="https://instagram.com/${ext.instagram_id}" target="_blank" rel="noopener" class="btn btn-ghost btn-sm">📸 Instagram</a>`:''}
+          ${ext.twitter_id?`<a href="https://twitter.com/${ext.twitter_id}" target="_blank" rel="noopener" class="btn btn-ghost btn-sm">🐦 Twitter</a>`:''}
+        </div>
+      </div>
+    </div>
+
+    <div style="max-width:1100px;margin:0 auto;padding:0 2.5rem 4rem">
+      ${knownFor.length?`
+        <div class="section-header" style="margin-top:0"><div class="section-title">🎬 KNOWN FOR</div></div>
+        <div class="movies-row" style="margin-bottom:2.5rem">
+          ${knownFor.map(m=>`
+            <div class="movie-card" onclick="window.location.href='movie.html?id=${m.id}&type=${m.media_type||'movie'}'">
+              <img src="${CV.posterUrl(m.poster_path,'w342')}" alt="${esc(m.title||m.name)}" loading="lazy" onerror="this.src='${CV.PLACEHOLDER}'"/>
+              <div class="movie-card-overlay">
+                <div class="movie-card-title">${m.title||m.name}</div>
+                <div class="movie-card-meta"><span class="rating-badge">⭐ ${m.vote_average?.toFixed(1)||'N/A'}</span><span>${CV.getYear(m.release_date||m.first_air_date)}</span></div>
+              </div>
+            </div>`).join('')}
+        </div>`:''}
+
+      ${crewCredits.filter(c=>c.job==='Director').length?`
+        <div class="section-header"><div class="section-title">🎥 DIRECTED</div></div>
+        <div class="movies-row" style="margin-bottom:2.5rem">
+          ${crewCredits.filter(c=>c.job==='Director').sort((a,b)=>(b.popularity||0)-(a.popularity||0)).slice(0,12).map(m=>`
+            <div class="movie-card" onclick="window.location.href='movie.html?id=${m.id}&type=${m.media_type||'movie'}'">
+              <img src="${CV.posterUrl(m.poster_path,'w342')}" alt="${esc(m.title||m.name)}" loading="lazy" onerror="this.src='${CV.PLACEHOLDER}'"/>
+              <div class="movie-card-overlay">
+                <div class="movie-card-title">${m.title||m.name}</div>
+                <div class="movie-card-meta"><span class="rating-badge">⭐ ${m.vote_average?.toFixed(1)||'N/A'}</span></div>
+              </div>
+            </div>`).join('')}
+        </div>`:''}
+
+      <div class="section-header"><div class="section-title">📋 FULL FILMOGRAPHY</div></div>
+      <div style="display:grid;gap:.5rem">
+        ${allWork.slice(0,30).map(m=>`
+          <div onclick="window.location.href='movie.html?id=${m.id}&type=${m.media_type||'movie'}'" style="display:flex;align-items:center;gap:1rem;padding:.75rem 1rem;background:var(--bg-card);border:1px solid rgba(255,255,255,.06);border-radius:var(--radius-md);cursor:pointer;transition:var(--transition)" onmouseover="this.style.borderColor='var(--border-glow)'" onmouseout="this.style.borderColor='rgba(255,255,255,.06)'">
+            <img src="${CV.posterUrl(m.poster_path,'w92')}" style="width:36px;height:54px;border-radius:4px;object-fit:cover;flex-shrink:0" onerror="this.src='${CV.PLACEHOLDER}'"/>
+            <div style="flex:1">
+              <div style="font-family:var(--font-ui);font-weight:700;font-size:.9rem;color:var(--text-primary)">${m.title||m.name}</div>
+              <div style="font-size:.75rem;color:var(--text-dim)">${m.character?`as ${m.character} · `:''} ${CV.getYear(m.release_date||m.first_air_date)||'TBA'}</div>
+            </div>
+            <div class="rating-badge" style="flex-shrink:0">⭐ ${m.vote_average?.toFixed(1)||'N/A'}</div>
+          </div>`).join('')}
+      </div>
+    </div>`;
+}
+
+let bioExpanded = false;
+function toggleBio() {
+  const bio = document.getElementById('personBio');
+  const btn = document.getElementById('readMoreBtn');
+  bioExpanded = !bioExpanded;
+  bio.classList.toggle('collapsed', !bioExpanded);
+  btn.textContent = bioExpanded ? 'Read less ↑' : 'Read more ↓';
+}
+
+function esc(s) { return (s||'').replace(/'/g,"\\'").replace(/"/g,'&quot;'); }
+</script>
+</body>
+</html>
